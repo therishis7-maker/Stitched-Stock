@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StitchStock Personal</title>
+<style>
+:root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#182235;background:#f4f6fa}*{box-sizing:border-box}body{margin:0}.wrap{max-width:850px;margin:auto;padding:18px}
+.panel,.stat{background:white;border:1px solid #e5e9f0;border-radius:14px;padding:16px}.auth{max-width:410px;margin:9vh auto}
+h1{font-size:23px;margin:0}h2{font-size:19px;margin:0 0 12px}.muted{color:#687386;font-size:13px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}.stat span{font-size:13px;color:#687386}.stat b{display:block;font-size:28px;margin-top:6px}
+button{border:0;border-radius:9px;padding:11px 14px;background:#2459d3;color:white;font-weight:650;cursor:pointer}button.secondary{background:#e8edf5;color:#25334d}button:disabled{opacity:.5}
+input,select{width:100%;padding:12px;border:1px solid #d8deea;border-radius:9px;background:#fff;color:#182235}label{display:block;font-size:13px;font-weight:650;margin:12px 0 6px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hidden{display:none!important}
+.notice{padding:11px;border-radius:9px;background:#edf3ff;color:#23427d;margin:12px 0;font-size:14px}.error{background:#fff0f0;color:#9d2525}.success{background:#eaf8ef;color:#176b37}
+table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;font-size:13px}th{color:#687386}
+.tablewrap{overflow:auto}.actions{display:flex;gap:8px;flex-wrap:wrap}.right{display:flex;gap:8px;align-items:center}
+@media(max-width:560px){.wrap{padding:12px}header{align-items:flex-start}.row{grid-template-columns:1fr}}
+</style></head><body>
+<div id="auth" class="wrap auth panel">
+<h1>StitchStock Personal</h1><p class="muted">Apni personal inventory mein sign in karein.</p>
+<div id="authMsg" class="notice hidden"></div>
+<label>Email</label><input id="email" type="email" placeholder="Your email">
+<label>Password</label><input id="password" type="password" placeholder="At least 6 characters">
+<div class="actions" style="margin-top:16px"><button id="signup">Create my account</button><button id="login" class="secondary">Login</button></div>
+<p class="muted">Pehli dafa Create my account karein. Account confirm karne ke liye email aa sakti hai.</p>
+</div>
+<div id="app" class="wrap hidden">
+<header><div><h1>StitchStock Personal</h1><span class="muted">Your private clothing stock</span></div><button id="logout" class="secondary">Logout</button></header>
+<div id="msg" class="notice hidden"></div>
+<div class="grid">
+<div class="stat"><span>Total pieces</span><b id="total">0</b></div>
+<div class="stat"><span>Shirts</span><b id="shirts">0</b></div>
+<div class="stat"><span>Trousers</span><b id="trousers">0</b></div>
+<div class="stat"><span>Pants</span><b id="pants">0</b></div>
+</div>
+<div class="tabs"><button data-tab="stock">Stock</button><button data-tab="entry" class="secondary">Add / Sale</button><button data-tab="history" class="secondary">History</button></div>
+<section id="stock" class="panel"><div class="right" style="justify-content:space-between"><h2>Current Stock</h2><button id="refresh" class="secondary">Refresh</button></div>
+<div class="tablewrap"><table><thead><tr><th>Product</th><th>Available pieces</th><th>Updated</th></tr></thead><tbody id="stockRows"></tbody></table></div></section>
+<section id="entry" class="panel hidden"><h2>Stock Entry</h2><div class="row">
+<div><label>Product</label><select id="product"></select></div>
+<div><label>Type</label><select id="type"><option value="IN">Add Stock</option><option value="OUT">Sale Out</option></select></div>
+</div><label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
+<label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. stitched batch / customer sale">
+<button id="save" style="margin-top:15px">Save Entry</button></section>
+<section id="history" class="panel hidden"><h2>Stock History</h2><div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+<button id="csv" class="secondary" style="margin-top:14px">Download History CSV</button></section>
+<p class="muted">Your account's data is private to that account. Keep your login password safe.</p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="PASTE_SUPABASE_PROJECT_URL";
+const SUPABASE_ANON_KEY="PASTE_SUPABASE_ANON_KEY";
+let db, rows=[], movements=[];
+const $=x=>document.getElementById(x);
+function msg(id,t,bad=false){$(id).textContent=t;$(id).className='notice '+(bad?'error':'success')}
+function hide(id){$(id).classList.add('hidden')}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function ready(){return !SUPABASE_URL.startsWith('PASTE_')&&!SUPABASE_ANON_KEY.startsWith('PASTE_')}
+async function start(){
+ if(!ready()){msg('authMsg','Setup baqi hai: README ke mutabiq Supabase URL aur anon key index.html mein paste karein.',true);return}
+ db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ const {data:{session}}=await db.auth.getSession();if(session)showApp();
+ db.auth.onAuthStateChange((_e,s)=>s?showApp():showAuth());
+}
+function showAuth(){$('auth').classList.remove('hidden');$('app').classList.add('hidden')}
+async function showApp(){$('auth').classList.add('hidden');$('app').classList.remove('hidden');await db.rpc('create_my_products');await load()}
+$('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')}
+$('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)}
+$('logout').onclick=()=>db.auth.signOut();
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('secondary',x!==b));['stock','entry','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
+$('refresh').onclick=load;
+async function load(){
+ hide('msg');
+ let r=await db.from('products').select('id,name,quantity,updated_at').order('name');
+ if(r.error){msg('msg',r.error.message,true);return}rows=r.data||[];
+ $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+ $('total').textContent=rows.reduce((a,x)=>a+x.quantity,0);
+ for(const n of ['shirts','trousers','pants']){$(n).textContent=rows.find(x=>x.name.toLowerCase()===n)?.quantity??0}
+ $('stockRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.name)}</td><td><b>${x.quantity}</b></td><td>${new Date(x.updated_at).toLocaleString()}</td></tr>`).join('');
+ let h=await db.from('stock_movements').select('movement_type,quantity,note,created_at,products(name)').order('created_at',{ascending:false}).limit(500);
+ if(h.error){msg('msg',h.error.message,true);return}movements=h.data||[];
+ $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':'Sale Out'}</td><td>${x.quantity}</td><td>${esc(x.note||'')}</td></tr>`).join('');
+}
+$('save').onclick=async()=>{
+ const id=$('product').value, type=$('type').value, qty=Number($('qty').value);
+ if(!id||!Number.isInteger(qty)||qty<1){msg('msg','Product select karein aur quantity 1 ya us se zyada whole number honi chahiye.',true);return}
+ $('save').disabled=true;
+ const {error}=await db.rpc('record_stock_movement',{p_product_id:id,p_movement_type:type,p_quantity:qty,p_note:$('note').value.trim()||null});
+ $('save').disabled=false;
+ if(error){msg('msg',error.message,true);return}
+ $('qty').value='';$('note').value='';msg('msg','Record save ho gaya aur stock update ho gaya.');await load();
+};
+$('csv').onclick=()=>{
+ const lines=[['Date','Product','Type','Quantity','Note'],...movements.map(x=>[new Date(x.created_at).toLocaleString(),x.products?.name||'',x.movement_type,x.quantity,x.note||''])];
+ const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='stitchstock-history.csv';a.click();URL.revokeObjectURL(a.href);
+};
+start();
+</script></body></html>
