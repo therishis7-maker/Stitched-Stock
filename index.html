@@ -47,8 +47,10 @@ table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL="PASTE_SUPABASE_PROJECT_URL";
-const SUPABASE_ANON_KEY="PASTE_SUPABASE_ANON_KEY";
+const SUPABASE_URL=
+ "https://fkrkokppeuulgrthjspm.supabase.co";
+const SUPABASE_ANON_KEY=
+ "sb_publishable_60cBiBtkR3K5FXyNzkgUCg_wLekDsmn";
 let db, rows=[], movements=[];
 const $=x=>document.getElementById(x);
 function msg(id,t,bad=false){$(id).textContent=t;$(id).className='notice '+(bad?'error':'success')}
