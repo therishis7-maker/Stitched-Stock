@@ -104,7 +104,23 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+// Load a pinned QR scanner build, with a second CDN as fallback.
+window.__stitchQrLibraryReady = new Promise(resolve => {
+  const load = (url, fallbackUrl) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = () => resolve(true);
+    script.onerror = () => {
+      if (fallbackUrl) load(fallbackUrl, null);
+      else resolve(false);
+    };
+    document.head.appendChild(script);
+  };
+  load('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+       'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js');
+});
+</script>
 <script>
 const SUPABASE_URL="https://fkrkokppeuulgrthjspm.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_60cBiBtkR3K5FXyNzkgUCg_wLekDsmn";
@@ -169,8 +185,49 @@ function stageQr(code){stagedQr=String(code||'').trim();$('scanInput').value=sta
 $('checkQr').onclick=()=>stageQr($('scanInput').value);
 $('scanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();stageQr($('scanInput').value)}});
 $('confirmSale').onclick=async()=>{if(!stagedQr)return;$('confirmSale').disabled=true;const {data,error}=await db.rpc('sell_garment_qr',{p_qr_code:stagedQr});$('confirmSale').disabled=false;if(error){msg('scanResult','Sale failed: '+error.message,true);return}stagedQr='';$('scanInput').value='';hide('confirmSale');msg('scanResult','Sale successfully record ho gayi. Stock deduct kar diya gaya.');await load()};
-$('startCamera').onclick=async()=>{if(!window.Html5Qrcode){msg('scanResult','Camera scanner library load nahi hui. Internet connection check karein.',true);return}try{if(!scanner)scanner=new Html5Qrcode('reader');await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},decoded=>{stageQr(decoded);scanner.stop().catch(()=>{})});}catch(e){msg('scanResult','Camera start nahi hua: '+e.message,true)}};
-$('stopCamera').onclick=async()=>{if(scanner&&scanner.isScanning){await scanner.stop();msg('scanResult','Camera stopped.')}};
+function cameraErrorText(err){
+  if(err && typeof err==='object'){
+    const parts=[err.name,err.message,err.constraint].filter(Boolean);
+    if(parts.length)return parts.join(': ');
+    try{return JSON.stringify(err)}catch(_){return String(err)}
+  }
+  return (typeof err==='string' && err.trim()) ? err : 'Unknown camera error (browser ne detail provide nahi ki).';
+}
+$('startCamera').onclick=async()=>{
+  const btn=$('startCamera');
+  btn.disabled=true;
+  msg('scanResult','Camera scanner load ho raha hai…');
+  try{
+    if(!window.isSecureContext){throw new Error('Website secure HTTPS context mein open nahi hai. Chrome mein https:// wala address use karein.')}
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){throw new Error('Is browser mein camera API available nahi. Chrome mein website open karein.')}
+    const libraryLoaded=window.__stitchQrLibraryReady ? await window.__stitchQrLibraryReady : !!window.Html5Qrcode;
+    if(!libraryLoaded || !window.Html5Qrcode){throw new Error('QR scanner library load nahi hui. Internet connection check karke page refresh karein.')}
+    if(scanner && scanner.isScanning){await scanner.stop();}
+    if(!scanner) scanner=new Html5Qrcode('reader',{verbose:false});
+    let cameraConfig={facingMode:'environment'};
+    try{
+      const cameras=await Html5Qrcode.getCameras();
+      if(cameras && cameras.length){
+        const rear=cameras.find(c=>/back|rear|environment|facing back/i.test(c.label||''));
+        cameraConfig={deviceId:{exact:(rear||cameras[0]).id}};
+      }
+    }catch(cameraListError){ /* Browser may hide camera labels until permission is granted. */ }
+    await scanner.start(cameraConfig,{fps:10,qrbox:{width:230,height:230}},decoded=>{
+      stageQr(decoded);
+      if(scanner && scanner.isScanning) scanner.stop().catch(stopError=>console.warn('QR scanner stop:',stopError));
+    });
+    msg('scanResult','Camera scanner active hai. QR code camera ke samne rakhein.');
+  }catch(e){
+    console.error('StitchMaster camera start error:',e);
+    msg('scanResult','Camera start nahi hua: '+cameraErrorText(e),true);
+  }finally{btn.disabled=false;}
+};
+$('stopCamera').onclick=async()=>{
+  try{
+    if(scanner && scanner.isScanning){await scanner.stop();}
+    msg('scanResult','Camera stopped.');
+  }catch(e){console.error('StitchMaster camera stop error:',e);msg('scanResult','Camera stop nahi hua: '+cameraErrorText(e),true)}
+};
 $('csv').onclick=()=>{const lines=[['Date','Product','Type','Quantity','Note'],...movements.map(x=>[new Date(x.created_at).toLocaleString(),x.products?.name||'',x.movement_type,x.quantity,x.note||''])];const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='stitchmaster-history.csv';a.click();URL.revokeObjectURL(a.href)};
 start();
 </script></body></html>
