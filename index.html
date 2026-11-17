@@ -103,7 +103,7 @@ async function showApp(){$('auth').classList.add('hidden');$('app').classList.re
 $('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')}
 $('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)}
 $('logout').onclick=()=>db.auth.signOut();
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b));['stock','entry','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['stock','entry','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
 $('refresh').onclick=load;
 async function load(){
  hide('msg');
