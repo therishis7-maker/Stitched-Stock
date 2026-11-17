@@ -26,7 +26,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 .tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;padding:13px 11px;border-bottom:1px solid #edf0f5;font-size:13px;white-space:nowrap}th{color:#6c7d98;font-weight:700;background:#f7f9fd}td{color:#344563}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
-.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}
+.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.mini-stat{background:#f7faff;border:1px solid var(--line);border-radius:13px;padding:15px}.mini-stat span{display:block;color:var(--muted);font-size:12px;font-weight:700}.mini-stat b{display:block;color:#173665;font-size:23px;margin-top:7px}.pending{font-size:12px;color:#64748b;background:#f1f5f9;border-radius:20px;padding:5px 9px;display:inline-block}@media(max-width:800px){.mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:800px){.wrap{padding:15px}.app-shell{grid-template-columns:1fr;gap:15px}.sidebar{min-height:0;position:static;padding:14px}.brand{padding:4px 7px 12px}.tabs{flex-direction:row;overflow:auto}.tabs button{white-space:nowrap;padding:11px}.sidebar-foot{display:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:15px}.stat b{font-size:26px}.panel{padding:16px}}
 @media(max-width:480px){.row{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbar .right{flex-direction:column;align-items:flex-end}.grid{gap:8px}.stat b{font-size:23px}}
 </style></head><body>
@@ -43,23 +43,26 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 <aside class="sidebar">
   <div class="brand">Stitch<span>Master</span></div>
   <div class="tabs">
-    <button data-tab="stock" class="active">▦ &nbsp; Dashboard / Stock</button>
-    <button data-tab="entry">＋ &nbsp; Add Stock / Sale</button>
+    <button data-tab="stock" class="active">▦ &nbsp; Dashboard</button>
+    <button data-tab="entry">＋ &nbsp; Add Stock</button>
+    <button data-tab="sales">৳ &nbsp; Sales</button>
+    <button data-tab="sizes">↔ &nbsp; Size-wise Stock</button>
+    <button data-tab="qr">▣ &nbsp; QR Scanner</button>
     <button data-tab="history">◷ &nbsp; History</button>
   </div>
-  <div class="sidebar-foot">SMART INVENTORY<br><b>For your stitching unit</b><br><br>Shirts · Pants · Trousers</div>
+  <div class="sidebar-foot">SMART INVENTORY<br><b>For your stitching unit</b><br><br>Size-wise stock · Sales · QR</div>
 </aside>
 <main class="main">
   <header class="topbar">
-    <div><h1>Dashboard</h1><span class="muted">Inventory overview · Your private clothing stock</span></div>
+    <div><h1>Dashboard</h1><span class="muted">Inventory, sizes and sales overview</span></div>
     <div class="right"><span class="muted">Admin</span><button id="logout" class="secondary">Logout</button></div>
   </header>
   <div id="msg" class="notice hidden"></div>
   <div class="grid">
     <div class="stat"><span>Total pieces in stock</span><b id="total">0</b></div>
-    <div class="stat"><span>Shirts</span><b id="shirts">0</b></div>
-    <div class="stat"><span>Pants</span><b id="pants">0</b></div>
-    <div class="stat"><span>Trousers</span><b id="trousers">0</b></div>
+    <div class="stat"><span>Total sales</span><b>Rs. —</b></div>
+    <div class="stat"><span>Dresses sold</span><b>—</b></div>
+    <div class="stat"><span>Today's sales</span><b>Rs. —</b></div>
   </div>
   <section id="stock" class="panel">
     <div class="section-head"><div><h2>Stock Overview</h2><span class="muted">Current available quantities</span></div><button id="refresh" class="secondary">↻ Refresh</button></div>
@@ -71,6 +74,25 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
     <label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. stitched batch / customer sale">
     <button id="save" style="margin-top:17px">Save Entry</button>
+  </section>
+  <section id="sales" class="panel hidden">
+    <div class="section-head"><div><h2>Sales Overview</h2><span class="muted">Sales totals and sold dresses</span></div><span class="pending">Database setup pending</span></div>
+    <div class="mini-grid">
+      <div class="mini-stat"><span>Total sales amount</span><b>Rs. —</b></div>
+      <div class="mini-stat"><span>Dresses sold</span><b>—</b></div>
+      <div class="mini-stat"><span>Today's sales</span><b>Rs. —</b></div>
+      <div class="mini-stat"><span>This month's sales</span><b>Rs. —</b></div>
+    </div>
+    <p class="muted">Actual figures will appear after sales database setup.</p>
+  </section>
+  <section id="sizes" class="panel hidden">
+    <div class="section-head"><div><h2>Size-wise Stock</h2><span class="muted">Stock quantities by size</span></div><span class="pending">Database setup pending</span></div>
+    <div class="tablewrap"><table><thead><tr><th>Product / Design</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>XXL</th><th>Total</th></tr></thead>
+    <tbody><tr><td colspan="7" class="muted">Size-wise stock records will appear here after database setup.</td></tr></tbody></table></div>
+  </section>
+  <section id="qr" class="panel hidden">
+    <div class="section-head"><div><h2>QR Scanner</h2><span class="muted">Scan a dress QR code to record its sale</span></div><span class="pending">Setup pending</span></div>
+    <div class="qr-hint">Unique QR codes and camera scanning will be enabled after we add garment IDs and sales records to the database. No stock will be deducted from this preview yet.</div>
   </section>
   <section id="history" class="panel hidden">
     <div class="section-head"><div><h2>Stock History</h2><span class="muted">Recent stock additions and sales</span></div><button id="csv" class="secondary">↓ Download CSV</button></div>
@@ -103,7 +125,7 @@ async function showApp(){$('auth').classList.add('hidden');$('app').classList.re
 $('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')}
 $('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)}
 $('logout').onclick=()=>db.auth.signOut();
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['stock','entry','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['stock','entry','sales','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
 $('refresh').onclick=load;
 async function load(){
  hide('msg');
