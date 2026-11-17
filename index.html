@@ -72,6 +72,11 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
   <section id="entry" class="panel hidden">
     <h2>Add Stitched Stock</h2><p class="muted">Har piece ka unique QR code banega. Stock tabhi add hoga jab batch save hoga.</p>
     <div class="form-grid"><div><label>Product / Design</label><select id="product"></select></div><div><label>Size</label><select id="size"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></div></div>
+    <h2 style="margin-top:20px">Design Details (all sizes share this price)</h2>
+    <div class="form-grid"><div><label>Fabric Name</label><input id="fabricName" maxlength="100" placeholder="e.g. Silk"></div><div><label>Color</label><input id="designColor" maxlength="60" placeholder="e.g. Black"></div></div>
+    <label>Design Price (Rs.) — same for S, M, L, XL and XXL</label><input id="designPrice" type="number" min="0" step="0.01" placeholder="e.g. 4999">
+    <button id="saveDesign" class="secondary" style="margin-top:12px">Save Design Details</button>
+    <p class="muted">Fabric, color aur price design ke saath save honge. Har size ka price isi design wala rahega.</p>
     <label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
     <label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. batch / stitching date">
     <button id="save" style="margin-top:17px">Save Batch & Generate QR</button>
@@ -144,11 +149,38 @@ $('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInW
 $('logout').onclick=()=>db.auth.signOut();
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes()});
 $('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;
+function fillDesignFields(){
+ const p=rows.find(x=>x.id===$('product').value);
+ $('fabricName').value=p?.fabric_name||'';
+ $('designColor').value=p?.color||'';
+ $('designPrice').value=p?.price??'';
+}
+$('product').addEventListener('change',fillDesignFields);
+$('saveDesign').onclick=async()=>{
+ const id=$('product').value;
+ if(!id){msg('msg','Pehle product/design select karein.',true);return}
+ const raw=$('designPrice').value.trim();
+ const price=raw===''?null:Number(raw);
+ if(price!==null&&(!Number.isFinite(price)||price<0)){msg('msg','Price 0 ya us se zyada honi chahiye.',true);return}
+ $('saveDesign').disabled=true;
+ const {error}=await db.from('products').update({
+   fabric_name:$('fabricName').value.trim()||null,
+   color:$('designColor').value.trim()||null,
+   price
+ }).eq('id',id);
+ $('saveDesign').disabled=false;
+ if(error){msg('msg','Design details save nahi huin: '+error.message,true);return}
+ msg('msg','Design details successfully save ho gayin. Is design ke tamam sizes ki price same rahegi.');
+ await load();
+ fillDesignFields();
+};
+
 async function load(){
  hide('msg');
- const r=await db.from('products').select('id,name,quantity,updated_at').order('name');
+ const r=await db.from('products').select('id,name,quantity,updated_at,fabric_name,color,price').order('name');
  if(r.error){msg('msg',r.error.message,true);return}rows=r.data||[];
  $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+ fillDesignFields();
  $('total').textContent=rows.reduce((a,x)=>a+Number(x.quantity||0),0);$('designTotal').textContent=rows.length;
  $('stockRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.name)}</td><td><b>${Number(x.quantity||0)}</b></td><td>${x.updated_at?new Date(x.updated_at).toLocaleString():'—'}</td></tr>`).join('')||'<tr><td colspan="3">No products found.</td></tr>';
  const h=await db.from('stock_movements').select('movement_type,quantity,note,created_at,products(name)').order('created_at',{ascending:false}).limit(500);
@@ -181,10 +213,35 @@ $('save').onclick=async()=>{
  show('batchResult');$('qty').value='';$('note').value='';msg('msg','Batch successfully save ho gaya. Generated labels print kar sakte hain.');await load();
 };
 $('printLabels').onclick=()=>window.print();
-function stageQr(code){stagedQr=String(code||'').trim();$('scanInput').value=stagedQr;if(!stagedQr){msg('scanResult','QR code empty hai.',true);hide('confirmSale');return}msg('scanResult','QR code received. Sale confirm karne se pehle button dabayein.');show('confirmSale')}
+async function stageQr(code){
+ stagedQr=String(code||'').trim();$('scanInput').value=stagedQr;hide('confirmSale');
+ if(!stagedQr){$('scanResult').textContent='QR code empty hai.';return}
+ $('scanResult').textContent='QR code database mein check ho raha hai…';
+ const {data,error}=await db.from('garment_qr')
+   .select('id,product_id,size,qr_code,status,products(name,fabric_name,color,price)')
+   .eq('qr_code',stagedQr).maybeSingle();
+ if(error){$('scanResult').textContent='QR lookup error: '+error.message+' — Supabase mein design columns ki SQL migration run hui hai?';stagedQr='';return}
+ if(!data){$('scanResult').textContent='Yeh QR StitchMaster mein registered nahi hai. Add Stock se generate kiya gaya original garment QR scan karein.';stagedQr='';return}
+ const p=data.products||{};
+ const status=data.status==='in_stock'?'In Stock':(data.status==='sold'?'Sold':'Unknown');
+ $('scanResult').innerHTML=`
+   <h2>Garment Details</h2>
+   <div class="mini-grid">
+    <div class="mini-stat"><span>Design / Product</span><b style="font-size:17px">${esc(p.name||'—')}</b></div>
+    <div class="mini-stat"><span>Fabric</span><b style="font-size:17px">${esc(p.fabric_name||'Not added')}</b></div>
+    <div class="mini-stat"><span>Size</span><b style="font-size:17px">${esc(data.size||'—')}</b></div>
+    <div class="mini-stat"><span>Price</span><b style="font-size:17px">${p.price==null?'Not added':'Rs. '+Number(p.price).toLocaleString('en-PK')}</b></div>
+    <div class="mini-stat"><span>Color</span><b style="font-size:17px">${esc(p.color||'Not added')}</b></div>
+    <div class="mini-stat"><span>Stock Status</span><b style="font-size:17px">${status}</b></div>
+   </div>
+   <div class="muted">Unique QR / Product ID: ${esc(data.qr_code)}</div>`;
+ if(data.status==='in_stock'){show('confirmSale')}
+ else if(data.status==='sold'){$('scanResult').innerHTML+='<p class="notice error">Yeh garment pehle hi sold mark ho chuka hai. Dobara sale nahi ho sakti.</p>'}
+ else {$('scanResult').innerHTML+='<p class="notice error">Is QR ka stock status verify nahi ho saka.</p>'}
+}
 $('checkQr').onclick=()=>stageQr($('scanInput').value);
 $('scanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();stageQr($('scanInput').value)}});
-$('confirmSale').onclick=async()=>{if(!stagedQr)return;$('confirmSale').disabled=true;const {data,error}=await db.rpc('sell_garment_qr',{p_qr_code:stagedQr});$('confirmSale').disabled=false;if(error){msg('scanResult','Sale failed: '+error.message,true);return}stagedQr='';$('scanInput').value='';hide('confirmSale');msg('scanResult','Sale successfully record ho gayi. Stock deduct kar diya gaya.');await load()};
+$('confirmSale').onclick=async()=>{if(!stagedQr)return;$('confirmSale').disabled=true;const {data,error}=await db.rpc('sell_garment_qr',{p_qr_code:stagedQr});$('confirmSale').disabled=false;if(error){msg('scanResult','Sale failed: '+error.message,true);return}stagedQr='';$('scanInput').value='';hide('confirmSale');$('scanResult').textContent='Sale successfully record ho gayi. Stock deduct kar diya gaya. Agla garment scan kar sakte hain.';await load()};
 function cameraErrorText(err){
   if(err && typeof err==='object'){
     const parts=[err.name,err.message,err.constraint].filter(Boolean);
