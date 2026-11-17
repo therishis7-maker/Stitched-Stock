@@ -1,12 +1,15 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>StitchMaster</title>
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
 *{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
 button{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;transition:.18s}
-button:hover{filter:brightness(.96);transform:translateY(-1px)}button.secondary{background:#eaf0fa;color:#29436d}button:disabled{opacity:.5;cursor:not-allowed}
-input,select{width:100%;padding:12px 13px;border:1px solid #d8e1ef;border-radius:10px;background:#fff;color:#182235;font:inherit;outline:none}
+button:hover{filter:brightness(.96);transform:translateY(-1px)}button.secondary{background:#eaf0fa;color:#29436d}button.danger{background:#a93232}button:disabled{opacity:.5;cursor:not-allowed}
+input,select{width:100%;padding:12px 13px;border:1px solid #d8e1ef;border-radius:10px;background:#fff;color:#182235;font:inherit}
 input:focus,select:focus{border-color:#6d98ed;box-shadow:0 0 0 3px #2463d91a}
 label{display:block;font-size:13px;font-weight:700;margin:14px 0 7px;color:#344563}
 h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-size:17px;margin:0 0 14px;color:#1b3155}
@@ -22,22 +25,41 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 .tabs{display:flex;flex-direction:column;gap:7px;margin:10px 0}.tabs button{text-align:left;background:transparent;color:#dce7fb;padding:13px 14px;border-radius:11px}.tabs button.active{background:#2865d7;color:white;box-shadow:0 5px 14px #071a3a55}
 .sidebar-foot{border-top:1px solid #ffffff26;margin-top:28px;padding:18px 10px;color:#c5d4ed;font-size:12px;line-height:1.6}
 .main{min-width:0}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:20px}.topbar .right{display:flex;gap:9px;align-items:center}
-.right{display:flex;gap:8px;align-items:center}.notice{padding:12px 14px;border-radius:11px;background:#edf3ff;color:#23427d;margin:12px 0;font-size:14px}.error{background:#fff0f0;color:#9d2525}.success{background:#eaf8ef;color:#176b37}
+.right{display:flex;gap:8px;align-items:center}.notice{padding:12px 14px;border-radius:11px;background:#edf3ff;color:#23427d;margin:12px 0;font-size:14px;overflow-wrap:anywhere}.error{background:#fff0f0;color:#9d2525}.success{background:#eaf8ef;color:#176b37}
 .tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;padding:13px 11px;border-bottom:1px solid #edf0f5;font-size:13px;white-space:nowrap}th{color:#6c7d98;font-weight:700;background:#f7f9fd}td{color:#344563}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
-.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.mini-stat{background:#f7faff;border:1px solid var(--line);border-radius:13px;padding:15px}.mini-stat span{display:block;color:var(--muted);font-size:12px;font-weight:700}.mini-stat b{display:block;color:#173665;font-size:23px;margin-top:7px}.pending{font-size:12px;color:#64748b;background:#f1f5f9;border-radius:20px;padding:5px 9px;display:inline-block}@media(max-width:800px){.mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}
+.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.mini-stat{background:#f7faff;border:1px solid var(--line);border-radius:13px;padding:15px}.mini-stat span{display:block;color:var(--muted);font-size:12px;font-weight:700}.mini-stat b{display:block;color:#173665;font-size:23px;margin-top:7px}
+.pending{font-size:12px;color:#64748b;background:#f1f5f9;border-radius:20px;padding:5px 9px;display:inline-block}
+.qr-labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:15px}
+.qr-label{border:1px dashed #b9c7dd;border-radius:10px;padding:10px;text-align:center;background:#fff;break-inside:avoid}
+.qr-label canvas,.qr-label img{display:block;margin:7px auto;max-width:100%}
+#reader{width:100%;max-width:480px;margin-top:12px}
+.scan-result{padding:14px;border:1px solid var(--line);border-radius:12px;margin-top:14px;background:#f8faff}
 @media(max-width:800px){.wrap{padding:15px}.app-shell{grid-template-columns:1fr;gap:15px}.sidebar{min-height:0;position:static;padding:14px}.brand{padding:4px 7px 12px}.tabs{flex-direction:row;overflow:auto}.tabs button{white-space:nowrap;padding:11px}.sidebar-foot{display:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:15px}.stat b{font-size:26px}.panel{padding:16px}}
 @media(max-width:480px){.row{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbar .right{flex-direction:column;align-items:flex-end}.grid{gap:8px}.stat b{font-size:23px}}
-</style></head><body>
+@media print{
+  body{background:#fff}body *{visibility:hidden!important}
+  #printArea,#printArea *{visibility:visible!important}
+  #printArea{display:block!important;position:absolute;left:0;top:0;padding:0;margin:0}
+  .qr-labels{display:grid;grid-template-columns:repeat(3,50mm);gap:3mm}
+  .qr-label{width:50mm;min-height:30mm;border:1px solid #bbb;border-radius:2mm;padding:2mm;color:#000}
+  .qr-label strong{font-size:9pt}.qr-label small{font-size:7pt}
+  .qr-label canvas,.qr-label img{width:20mm!important;height:20mm!important}
+}
+</style>
+</head>
+<body>
 <div id="auth" class="wrap auth panel">
-<h1>StitchMaster</h1><p class="muted">Sign in to your stitching unit inventory.</p>
-<div id="authMsg" class="notice hidden"></div>
-<label>Email</label><input id="email" type="email" placeholder="Your email">
-<label>Password</label><input id="password" type="password" placeholder="At least 6 characters">
-<div class="actions" style="margin-top:16px"><button id="signup">Create my account</button><button id="login" class="secondary">Login</button></div>
-<p class="muted">Pehli dafa Create my account karein. Account confirm karne ke liye email aa sakti hai.</p>
+  <h1>StitchMaster</h1><p class="muted">Sign in to your stitching unit inventory.</p>
+  <div id="authMsg" class="notice hidden"></div>
+  <label>Email</label><input id="email" type="email" placeholder="Your email" autocomplete="username">
+  <label>Password</label><input id="password" type="password" placeholder="At least 6 characters" autocomplete="current-password">
+  <div class="actions" style="margin-top:16px"><button id="signup">Create my account</button><button id="login" class="secondary">Login</button></div>
+  <p class="muted">Pehli dafa Create my account karein. Account confirm karne ke liye email aa sakti hai.</p>
 </div>
+
 <div id="app" class="wrap hidden">
 <div class="app-shell">
 <aside class="sidebar">
@@ -53,105 +75,278 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
   <div class="sidebar-foot">SMART INVENTORY<br><b>For your stitching unit</b><br><br>Size-wise stock · Sales · QR</div>
 </aside>
 <main class="main">
-  <header class="topbar">
-    <div><h1>Dashboard</h1><span class="muted">Inventory, sizes and sales overview</span></div>
-    <div class="right"><span class="muted">Admin</span><button id="logout" class="secondary">Logout</button></div>
-  </header>
-  <div id="msg" class="notice hidden"></div>
-  <div class="grid">
-    <div class="stat"><span>Total pieces in stock</span><b id="total">0</b></div>
-    <div class="stat"><span>Total sales</span><b>Rs. —</b></div>
-    <div class="stat"><span>Dresses sold</span><b>—</b></div>
-    <div class="stat"><span>Today's sales</span><b>Rs. —</b></div>
+<header class="topbar">
+  <div><h1 id="pageTitle">Dashboard</h1><span class="muted">Inventory, sizes and sales overview</span></div>
+  <div class="right"><span class="muted">Admin</span><button id="logout" class="secondary">Logout</button></div>
+</header>
+<div id="msg" class="notice hidden"></div>
+<div class="grid">
+  <div class="stat"><span>Total pieces in stock</span><b id="total">0</b></div>
+  <div class="stat"><span>Total pieces sold</span><b id="soldTotal">0</b></div>
+  <div class="stat"><span>Products</span><b id="productCount">0</b></div>
+  <div class="stat"><span>Today's pieces sold</span><b id="todaySold">0</b></div>
+</div>
+
+<section id="stock" class="panel">
+  <div class="section-head"><div><h2>Stock Overview</h2><span class="muted">Current available quantities</span></div><button id="refresh" class="secondary">↻ Refresh</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Product</th><th>Available pieces</th><th>Last updated</th></tr></thead><tbody id="stockRows"></tbody></table></div>
+</section>
+
+<section id="entry" class="panel hidden">
+  <h2>Add Garment Stock</h2><p class="muted">Select product and size. Each garment receives its own unique QR code.</p>
+  <div id="entryMsg" class="notice hidden"></div>
+  <div class="row"><div><label>Product</label><select id="product"></select></div><div><label>Size</label><select id="size"><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option></select></div></div>
+  <label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 25">
+  <label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. stitching batch">
+  <button id="save" style="margin-top:17px">Add Stock & Generate QR Codes</button>
+  <div id="batchResult" class="hidden">
+    <div id="batchSummary" class="notice success"></div>
+    <div class="actions"><button id="printBatch">Print QR Labels</button><button id="hideBatch" class="secondary">Hide labels</button></div>
+    <div id="batchLabels" class="qr-labels"></div>
   </div>
-  <section id="stock" class="panel">
-    <div class="section-head"><div><h2>Stock Overview</h2><span class="muted">Current available quantities</span></div><button id="refresh" class="secondary">↻ Refresh</button></div>
-    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Available pieces</th><th>Last updated</th></tr></thead><tbody id="stockRows"></tbody></table></div>
-  </section>
-  <section id="entry" class="panel hidden">
-    <h2>Stock Entry</h2><p class="muted">Add newly stitched stock or record a sale.</p>
-    <div class="row"><div><label>Product</label><select id="product"></select></div><div><label>Type</label><select id="type"><option value="IN">Add Stock</option><option value="OUT">Sale Out</option></select></div></div>
-    <label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
-    <label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. stitched batch / customer sale">
-    <button id="save" style="margin-top:17px">Save Entry</button>
-  </section>
-  <section id="sales" class="panel hidden">
-    <div class="section-head"><div><h2>Sales Overview</h2><span class="muted">Sales totals and sold dresses</span></div><span class="pending">Database setup pending</span></div>
-    <div class="mini-grid">
-      <div class="mini-stat"><span>Total sales amount</span><b>Rs. —</b></div>
-      <div class="mini-stat"><span>Dresses sold</span><b>—</b></div>
-      <div class="mini-stat"><span>Today's sales</span><b>Rs. —</b></div>
-      <div class="mini-stat"><span>This month's sales</span><b>Rs. —</b></div>
-    </div>
-    <p class="muted">Actual figures will appear after sales database setup.</p>
-  </section>
-  <section id="sizes" class="panel hidden">
-    <div class="section-head"><div><h2>Size-wise Stock</h2><span class="muted">Stock quantities by size</span></div><span class="pending">Database setup pending</span></div>
-    <div class="tablewrap"><table><thead><tr><th>Product / Design</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>XXL</th><th>Total</th></tr></thead>
-    <tbody><tr><td colspan="7" class="muted">Size-wise stock records will appear here after database setup.</td></tr></tbody></table></div>
-  </section>
-  <section id="qr" class="panel hidden">
-    <div class="section-head"><div><h2>QR Scanner</h2><span class="muted">Scan a dress QR code to record its sale</span></div><span class="pending">Setup pending</span></div>
-    <div class="qr-hint">Unique QR codes and camera scanning will be enabled after we add garment IDs and sales records to the database. No stock will be deducted from this preview yet.</div>
-  </section>
-  <section id="history" class="panel hidden">
-    <div class="section-head"><div><h2>Stock History</h2><span class="muted">Recent stock additions and sales</span></div><button id="csv" class="secondary">↓ Download CSV</button></div>
-    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead><tbody id="historyRows"></tbody></table></div>
-  </section>
-  <p class="muted" style="margin-top:18px">Your account data is private to that account. Keep your login password safe.</p>
+</section>
+
+<section id="sales" class="panel hidden">
+  <div class="section-head"><div><h2>Sales Overview</h2><span class="muted">Recorded garment sales (quantity-based)</span></div><button id="refreshSales" class="secondary">↻ Refresh</button></div>
+  <div class="mini-grid">
+    <div class="mini-stat"><span>Total pieces sold</span><b id="salesAll">0</b></div>
+    <div class="mini-stat"><span>Today's pieces sold</span><b id="salesToday">0</b></div>
+  </div>
+  <p class="muted">Sale amounts are not available because the current database has no price field. This screen reports sold quantities only.</p>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Movement</th><th>Qty</th><th>Note</th></tr></thead><tbody id="salesRows"></tbody></table></div>
+</section>
+
+<section id="sizes" class="panel hidden">
+  <div class="section-head"><div><h2>Size-wise Stock</h2><span class="muted">Available stock by product and size</span></div><button id="refreshSizes" class="secondary">↻ Refresh</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Product / Design</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>XXL</th><th>Total</th></tr></thead><tbody id="sizeRows"></tbody></table></div>
+</section>
+
+<section id="qr" class="panel hidden">
+  <h2>QR Scanner</h2><p class="muted">Scan a garment QR code, then confirm its sale. A USB/Bluetooth scanner that types into the box is also supported.</p>
+  <label>QR code</label><input id="scanInput" autocomplete="off" placeholder="Scan QR here, or type/paste code">
+  <div class="actions" style="margin-top:10px"><button id="stageScan">Check QR Code</button><button id="startCamera" class="secondary">Start Camera</button><button id="stopCamera" class="secondary">Stop Camera</button></div>
+  <div id="reader"></div>
+  <div id="scanMsg" class="notice hidden"></div>
+  <div id="scanResult" class="scan-result hidden">
+    <div id="scanDetails"></div>
+    <button id="confirmSale" style="margin-top:12px">Confirm Sale – Deduct 1 Piece</button>
+  </div>
+  <p class="muted" style="margin-top:12px">Camera scanning requires HTTPS and browser camera permission. Manual/USB scanner input remains available if camera access is unavailable.</p>
+</section>
+
+<section id="history" class="panel hidden">
+  <div class="section-head"><div><h2>Stock History</h2><span class="muted">Recent stock additions and sales</span></div><button id="csv" class="secondary">↓ Download CSV</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+</section>
+<section id="printArea" class="hidden"><div id="printLabels" class="qr-labels"></div></section>
+<p class="muted" style="margin-top:18px">Your account data is private to that account. Keep your login password safe.</p>
 </main>
 </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-const SUPABASE_URL=
- "https://fkrkokppeuulgrthjspm.supabase.co";
-const SUPABASE_ANON_KEY=
- "sb_publishable_60cBiBtkR3K5FXyNzkgUCg_wLekDsmn";
-let db, rows=[], movements=[];
-const $=x=>document.getElementById(x);
-function msg(id,t,bad=false){$(id).textContent=t;$(id).className='notice '+(bad?'error':'success')}
-function hide(id){$(id).classList.add('hidden')}
-function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function ready(){return !SUPABASE_URL.startsWith('PASTE_')&&!SUPABASE_ANON_KEY.startsWith('PASTE_')}
-async function start(){
- if(!ready()){msg('authMsg','Setup baqi hai: README ke mutabiq Supabase URL aur anon key index.html mein paste karein.',true);return}
- db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
- const {data:{session}}=await db.auth.getSession();if(session)showApp();
- db.auth.onAuthStateChange((_e,s)=>s?showApp():showAuth());
+'use strict';
+const SUPABASE_URL = "https://fkrkokppeuulgrthjspm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_60cBiBtkR3K5FXyNzkgUCg_wLekDsmn";
+let db, rows=[], movements=[], latestQrCodes=[], html5Qr=null, stagedQr=null;
+const $ = id => document.getElementById(id);
+const sizes = ['S','M','L','XL','XXL'];
+function showMessage(id, text, type='success'){
+  const el=$(id); el.textContent=text; el.className='notice '+type;
 }
-function showAuth(){$('auth').classList.remove('hidden');$('app').classList.add('hidden')}
-async function showApp(){$('auth').classList.add('hidden');$('app').classList.remove('hidden');await db.rpc('create_my_products');await load()}
-$('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')}
-$('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)}
-$('logout').onclick=()=>db.auth.signOut();
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['stock','entry','sales','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
-$('refresh').onclick=load;
-async function load(){
- hide('msg');
- let r=await db.from('products').select('id,name,quantity,updated_at').order('name');
- if(r.error){msg('msg',r.error.message,true);return}rows=r.data||[];
- $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
- $('total').textContent=rows.reduce((a,x)=>a+x.quantity,0);
- for(const n of ['shirts','trousers','pants']){$(n).textContent=rows.find(x=>x.name.toLowerCase()===n)?.quantity??0}
- $('stockRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.name)}</td><td><b>${x.quantity}</b></td><td>${new Date(x.updated_at).toLocaleString()}</td></tr>`).join('');
- let h=await db.from('stock_movements').select('movement_type,quantity,note,created_at,products(name)').order('created_at',{ascending:false}).limit(500);
- if(h.error){msg('msg',h.error.message,true);return}movements=h.data||[];
- $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':'Sale Out'}</td><td>${x.quantity}</td><td>${esc(x.note||'')}</td></tr>`).join('');
+function clearMessage(id){const el=$(id);el.textContent='';el.className='notice hidden';}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function formatDate(value){return value?new Date(value).toLocaleString():'—';}
+function setBusy(button,busy,label){button.disabled=busy;if(busy){button.dataset.oldText=button.textContent;button.textContent=label||'Please wait…';}else if(button.dataset.oldText){button.textContent=button.dataset.oldText;delete button.dataset.oldText;}}
+async function start(){
+  if(!window.supabase){showMessage('authMsg','Supabase library load nahi hui. Internet connection check karein.','error');return;}
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  try{
+    const {data:{session},error}=await db.auth.getSession();
+    if(error)throw error;
+    if(session)await showApp();
+    db.auth.onAuthStateChange((_event,session)=>{if(session)showApp();else showAuth();});
+  }catch(e){showMessage('authMsg',e.message,'error');}
+}
+function showAuth(){$('auth').classList.remove('hidden');$('app').classList.add('hidden');}
+async function showApp(){
+  $('auth').classList.add('hidden');$('app').classList.remove('hidden');
+  try{
+    const {error}=await db.rpc('create_my_products');
+    if(error)throw error;
+    await loadAll();
+  }catch(e){showMessage('msg','Dashboard load error: '+e.message,'error');}
+}
+$('signup').onclick=async()=>{
+  clearMessage('authMsg');
+  const email=$('email').value.trim(),password=$('password').value;
+  if(!email||password.length<6){showMessage('authMsg','Valid email aur kam az kam 6-character password enter karein.','error');return;}
+  setBusy($('signup'),true,'Creating…');
+  const {error}=await db.auth.signUp({email,password});
+  setBusy($('signup'),false);
+  if(error)showMessage('authMsg',error.message,'error');else showMessage('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.');
+};
+$('login').onclick=async()=>{
+  clearMessage('authMsg');
+  setBusy($('login'),true,'Signing in…');
+  const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+  setBusy($('login'),false);
+  if(error)showMessage('authMsg',error.message,'error');
+};
+$('logout').onclick=async()=>{if(html5Qr){try{await html5Qr.stop();}catch(_){}}await db.auth.signOut();};
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));
+  ['stock','entry','sales','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));
+  $('pageTitle').textContent=b.textContent.replace(/[▦＋৳↔▣◷]/g,'').trim();
+  if(b.dataset.tab==='sizes')loadSizes();
+  if(b.dataset.tab==='sales')loadSales();
+  if(b.dataset.tab==='history')loadHistory();
+  if(b.dataset.tab==='qr')$('scanInput').focus();
+});
+$('refresh').onclick=loadAll;
+$('refreshSizes').onclick=loadSizes;
+$('refreshSales').onclick=loadSales;
+
+async function loadProducts(){
+  const {data,error}=await db.from('products').select('id,name,quantity,updated_at').order('name');
+  if(error)throw error;
+  rows=data||[];
+  $('product').innerHTML=rows.length?rows.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join(''):'<option value="">No products available</option>';
+  $('total').textContent=rows.reduce((sum,p)=>sum+Number(p.quantity||0),0);
+  $('productCount').textContent=rows.length;
+  $('stockRows').innerHTML=rows.length?rows.map(p=>`<tr><td>${esc(p.name)}</td><td><b>${Number(p.quantity||0)}</b></td><td>${formatDate(p.updated_at)}</td></tr>`).join(''):'<tr><td colspan="3">No products found.</td></tr>';
+}
+async function loadHistory(){
+  const {data,error}=await db.from('stock_movements')
+    .select('movement_type,quantity,note,created_at,products(name)')
+    .order('created_at',{ascending:false}).limit(500);
+  if(error)throw error;
+  movements=data||[];
+  $('historyRows').innerHTML=movements.length?movements.map(m=>`<tr><td>${formatDate(m.created_at)}</td><td>${esc(m.products?.name||'—')}</td><td>${m.movement_type==='IN'?'Stock In':'Sale Out'}</td><td>${Number(m.quantity)}</td><td>${esc(m.note||'')}</td></tr>`).join(''):'<tr><td colspan="5">No history records yet.</td></tr>';
+}
+async function loadSales(){
+  const {data,error}=await db.from('stock_movements')
+    .select('movement_type,quantity,note,created_at,products(name)')
+    .eq('movement_type','OUT').order('created_at',{ascending:false}).limit(500);
+  if(error)throw error;
+  const sales=data||[];
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayCount=sales.filter(x=>new Date(x.created_at)>=today).reduce((a,x)=>a+Number(x.quantity||0),0);
+  const totalCount=sales.reduce((a,x)=>a+Number(x.quantity||0),0);
+  $('salesAll').textContent=totalCount;$('salesToday').textContent=todayCount;
+  $('salesRows').innerHTML=sales.length?sales.map(m=>`<tr><td>${formatDate(m.created_at)}</td><td>${esc(m.products?.name||'—')}</td><td>Sale Out</td><td>${Number(m.quantity)}</td><td>${esc(m.note||'')}</td></tr>`).join(''):'<tr><td colspan="5">No sales recorded yet.</td></tr>';
+  $('soldTotal').textContent=totalCount;$('todaySold').textContent=todayCount;
+}
+async function loadSizes(){
+  const {data,error}=await db.from('product_sizes').select('product_id,size,quantity,products(name)').order('product_id');
+  if(error)throw error;
+  const map=new Map();
+  (data||[]).forEach(r=>{
+    const key=r.product_id;
+    if(!map.has(key))map.set(key,{name:r.products?.name||'Unknown product',sizes:{S:0,M:0,L:0,XL:0,XXL:0}});
+    if(sizes.includes(r.size))map.get(key).sizes[r.size]=Number(r.quantity||0);
+  });
+  $('sizeRows').innerHTML=map.size?[...map.values()].map(p=>{
+    const total=sizes.reduce((n,s)=>n+p.sizes[s],0);
+    return `<tr><td>${esc(p.name)}</td>${sizes.map(s=>`<td>${p.sizes[s]}</td>`).join('')}<td><b>${total}</b></td></tr>`;
+  }).join(''):'<tr><td colspan="7">No size-wise stock records yet.</td></tr>';
+}
+async function loadAll(){
+  clearMessage('msg');
+  try{await loadProducts();await loadHistory();await loadSales();}
+  catch(e){showMessage('msg','Load error: '+e.message,'error');}
+}
+function renderLabels(target,codes,productName,size){
+  target.innerHTML='';
+  codes.forEach(code=>{
+    const label=document.createElement('div');label.className='qr-label';
+    const title=document.createElement('strong');title.textContent=productName;
+    const meta=document.createElement('small');meta.textContent='Size: '+size;
+    const qr=document.createElement('div');qr.className='qr-image';
+    const codeText=document.createElement('small');codeText.textContent=code;
+    label.append(title,document.createElement('br'),meta,qr,codeText);target.appendChild(label);
+    if(window.QRCode)new QRCode(qr,{text:code,width:110,height:110,correctLevel:QRCode.CorrectLevel.M});
+    else qr.textContent='QR library unavailable';
+  });
 }
 $('save').onclick=async()=>{
- const id=$('product').value, type=$('type').value, qty=Number($('qty').value);
- if(!id||!Number.isInteger(qty)||qty<1){msg('msg','Product select karein aur quantity 1 ya us se zyada whole number honi chahiye.',true);return}
- $('save').disabled=true;
- const {error}=await db.rpc('record_stock_movement',{p_product_id:id,p_movement_type:type,p_quantity:qty,p_note:$('note').value.trim()||null});
- $('save').disabled=false;
- if(error){msg('msg',error.message,true);return}
- $('qty').value='';$('note').value='';msg('msg','Record save ho gaya aur stock update ho gaya.');await load();
+  clearMessage('entryMsg');clearMessage('msg');
+  const productId=$('product').value,size=$('size').value,quantity=Number($('qty').value),note=$('note').value.trim()||null;
+  if(!productId){showMessage('entryMsg','Pehle product select karein.','error');return;}
+  if(!Number.isSafeInteger(quantity)||quantity<1||quantity>500){showMessage('entryMsg','Quantity 1 se 500 ke darmiyan whole number honi chahiye. Bade batches ko multiple batches mein add karein.','error');return;}
+  setBusy($('save'),true,'Adding stock & generating QR…');
+  try{
+    const {data,error}=await db.rpc('add_garment_batch',{p_product_id:productId,p_size:size,p_quantity:quantity,p_note:note});
+    if(error)throw error;
+    const codes=data?.qr_codes||[];
+    if(!data?.success||codes.length!==quantity)throw new Error('Batch response incomplete. Database response mein expected QR codes nahi mile.');
+    latestQrCodes=codes;
+    $('batchSummary').textContent=`${data.product_name} — Size ${data.size}: ${data.quantity_added} pieces added. ${codes.length} unique QR codes generated.`;
+    $('batchResult').classList.remove('hidden');
+    renderLabels($('batchLabels'),codes,data.product_name,data.size);
+    $('qty').value='';$('note').value='';
+    showMessage('entryMsg','Stock successfully add ho gaya aur QR codes generate ho gaye.');
+    await loadAll();await loadSizes();
+  }catch(e){showMessage('entryMsg','Stock add nahi hua: '+e.message,'error');}
+  finally{setBusy($('save'),false);}
+};
+$('printBatch').onclick=()=>{
+  if(!latestQrCodes.length){showMessage('entryMsg','Print karne ke liye QR labels maujood nahi.','error');return;}
+  const productName=rows.find(p=>p.id===$('product').value)?.name||'StitchMaster';
+  renderLabels($('printLabels'),latestQrCodes,productName,$('size').value);
+  $('printArea').classList.remove('hidden');
+  setTimeout(()=>{window.print();$('printArea').classList.add('hidden');},500);
+};
+$('hideBatch').onclick=()=>{$('batchResult').classList.add('hidden');$('batchLabels').innerHTML='';latestQrCodes=[];};
+
+function stageQr(code){
+  stagedQr=String(code||'').trim();
+  $('scanInput').value=stagedQr;
+  $('scanResult').classList.add('hidden');clearMessage('scanMsg');
+  if(!stagedQr){showMessage('scanMsg','QR code read nahi hua. Dobara scan karein.','error');return;}
+  $('scanDetails').textContent='Scanned QR: '+stagedQr+'. Sale confirm karne par database stock se exactly 1 piece deduct karega.';
+  $('scanResult').classList.remove('hidden');
+}
+$('stageScan').onclick=()=>stageQr($('scanInput').value);
+$('scanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();stageQr($('scanInput').value);}});
+$('confirmSale').onclick=async()=>{
+  if(!stagedQr){showMessage('scanMsg','Pehle QR code scan karein.','error');return;}
+  setBusy($('confirmSale'),true,'Recording sale…');
+  try{
+    const {data,error}=await db.rpc('sell_garment_qr',{p_qr_code:stagedQr});
+    if(error)throw error;
+    if(!data?.success)throw new Error('Sale confirmation response invalid.');
+    showMessage('scanMsg',`Sale successful: ${data.product_name}, Size ${data.size}. 1 piece deducted.`);
+    $('scanResult').classList.add('hidden');$('scanInput').value='';stagedQr=null;
+    await loadAll();await loadSizes();
+  }catch(e){showMessage('scanMsg','Sale failed: '+e.message,'error');}
+  finally{setBusy($('confirmSale'),false);}
+};
+$('startCamera').onclick=async()=>{
+  clearMessage('scanMsg');
+  if(!window.Html5Qrcode){showMessage('scanMsg','Camera scanner library load nahi hui. USB scanner ya manual input use karein.','error');return;}
+  try{
+    if(!html5Qr)html5Qr=new Html5Qrcode('reader');
+    await html5Qr.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},decoded=>{
+      stageQr(decoded);
+      html5Qr.stop().catch(()=>{});
+    },()=>{});
+    showMessage('scanMsg','Camera scanner active hai. QR code camera ke samne rakhein.');
+  }catch(e){showMessage('scanMsg','Camera start nahi ho saka: '+e+'. Browser camera permission aur HTTPS check karein.','error');}
+};
+$('stopCamera').onclick=async()=>{
+  if(html5Qr){try{if(html5Qr.isScanning)await html5Qr.stop();showMessage('scanMsg','Camera scanner stopped.');}catch(e){showMessage('scanMsg','Scanner stop error: '+e.message,'error');}}
 };
 $('csv').onclick=()=>{
- const lines=[['Date','Product','Type','Quantity','Note'],...movements.map(x=>[new Date(x.created_at).toLocaleString(),x.products?.name||'',x.movement_type,x.quantity,x.note||''])];
- const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
- const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='stitchstock-history.csv';a.click();URL.revokeObjectURL(a.href);
+  const lines=[['Date','Product','Type','Quantity','Note'],...movements.map(x=>[formatDate(x.created_at),x.products?.name||'',x.movement_type,x.quantity,x.note||''])];
+  const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  const a=document.createElement('a');a.href=url;a.download='stitchmaster-history.csv';a.click();URL.revokeObjectURL(url);
 };
 start();
-</script></body></html>
+</script>
+</body>
+</html>
