@@ -1,22 +1,37 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StitchStock Personal</title>
+<title>StitchMaster</title>
 <style>
-:root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#182235;background:#f4f6fa}*{box-sizing:border-box}body{margin:0}.wrap{max-width:850px;margin:auto;padding:18px}
-.panel,.stat{background:white;border:1px solid #e5e9f0;border-radius:14px;padding:16px}.auth{max-width:410px;margin:9vh auto}
-h1{font-size:23px;margin:0}h2{font-size:19px;margin:0 0 12px}.muted{color:#687386;font-size:13px}
-header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}.stat span{font-size:13px;color:#687386}.stat b{display:block;font-size:28px;margin-top:6px}
-button{border:0;border-radius:9px;padding:11px 14px;background:#2459d3;color:white;font-weight:650;cursor:pointer}button.secondary{background:#e8edf5;color:#25334d}button:disabled{opacity:.5}
-input,select{width:100%;padding:12px;border:1px solid #d8deea;border-radius:9px;background:#fff;color:#182235}label{display:block;font-size:13px;font-weight:650;margin:12px 0 6px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hidden{display:none!important}
-.notice{padding:11px;border-radius:9px;background:#edf3ff;color:#23427d;margin:12px 0;font-size:14px}.error{background:#fff0f0;color:#9d2525}.success{background:#eaf8ef;color:#176b37}
-table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;font-size:13px}th{color:#687386}
-.tablewrap{overflow:auto}.actions{display:flex;gap:8px;flex-wrap:wrap}.right{display:flex;gap:8px;align-items:center}
-@media(max-width:560px){.wrap{padding:12px}header{align-items:flex-start}.row{grid-template-columns:1fr}}
+:root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
+*{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
+button{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;transition:.18s}
+button:hover{filter:brightness(.96);transform:translateY(-1px)}button.secondary{background:#eaf0fa;color:#29436d}button:disabled{opacity:.5;cursor:not-allowed}
+input,select{width:100%;padding:12px 13px;border:1px solid #d8e1ef;border-radius:10px;background:#fff;color:#182235;font:inherit;outline:none}
+input:focus,select:focus{border-color:#6d98ed;box-shadow:0 0 0 3px #2463d91a}
+label{display:block;font-size:13px;font-weight:700;margin:14px 0 7px;color:#344563}
+h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-size:17px;margin:0 0 14px;color:#1b3155}
+.muted{color:var(--muted);font-size:13px}.wrap{max-width:1280px;margin:auto;padding:26px}
+.panel,.stat{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px;box-shadow:0 5px 20px #1c37600a}
+.auth{max-width:430px;margin:9vh auto;padding:30px}.auth h1{color:var(--blue)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin:22px 0}
+.stat{padding:19px;background:linear-gradient(145deg,#fff,#f7faff)}.stat span{font-size:13px;color:#687b9b;font-weight:650}.stat b{display:block;font-size:31px;margin-top:8px;color:#173665}
+.stat:before{content:"";display:block;width:34px;height:4px;border-radius:8px;background:#4e83e8;margin-bottom:13px}
+.app-shell{display:grid;grid-template-columns:235px minmax(0,1fr);gap:24px;align-items:start}
+.sidebar{background:var(--navy);color:#fff;border-radius:20px;padding:22px 15px;min-height:calc(100vh - 52px);position:sticky;top:26px}
+.brand{font-size:21px;font-weight:800;padding:5px 10px 24px;letter-spacing:-.5px}.brand span{color:#8db6ff}
+.tabs{display:flex;flex-direction:column;gap:7px;margin:10px 0}.tabs button{text-align:left;background:transparent;color:#dce7fb;padding:13px 14px;border-radius:11px}.tabs button.active{background:#2865d7;color:white;box-shadow:0 5px 14px #071a3a55}
+.sidebar-foot{border-top:1px solid #ffffff26;margin-top:28px;padding:18px 10px;color:#c5d4ed;font-size:12px;line-height:1.6}
+.main{min-width:0}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:20px}.topbar .right{display:flex;gap:9px;align-items:center}
+.right{display:flex;gap:8px;align-items:center}.notice{padding:12px 14px;border-radius:11px;background:#edf3ff;color:#23427d;margin:12px 0;font-size:14px}.error{background:#fff0f0;color:#9d2525}.success{background:#eaf8ef;color:#176b37}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;padding:13px 11px;border-bottom:1px solid #edf0f5;font-size:13px;white-space:nowrap}th{color:#6c7d98;font-weight:700;background:#f7f9fd}td{color:#344563}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}
+@media(max-width:800px){.wrap{padding:15px}.app-shell{grid-template-columns:1fr;gap:15px}.sidebar{min-height:0;position:static;padding:14px}.brand{padding:4px 7px 12px}.tabs{flex-direction:row;overflow:auto}.tabs button{white-space:nowrap;padding:11px}.sidebar-foot{display:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:15px}.stat b{font-size:26px}.panel{padding:16px}}
+@media(max-width:480px){.row{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbar .right{flex-direction:column;align-items:flex-end}.grid{gap:8px}.stat b{font-size:23px}}
 </style></head><body>
 <div id="auth" class="wrap auth panel">
-<h1>StitchStock Personal</h1><p class="muted">Apni personal inventory mein sign in karein.</p>
+<h1>StitchMaster</h1><p class="muted">Sign in to your stitching unit inventory.</p>
 <div id="authMsg" class="notice hidden"></div>
 <label>Email</label><input id="email" type="email" placeholder="Your email">
 <label>Password</label><input id="password" type="password" placeholder="At least 6 characters">
@@ -24,26 +39,46 @@ table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;
 <p class="muted">Pehli dafa Create my account karein. Account confirm karne ke liye email aa sakti hai.</p>
 </div>
 <div id="app" class="wrap hidden">
-<header><div><h1>StitchStock Personal</h1><span class="muted">Your private clothing stock</span></div><button id="logout" class="secondary">Logout</button></header>
-<div id="msg" class="notice hidden"></div>
-<div class="grid">
-<div class="stat"><span>Total pieces</span><b id="total">0</b></div>
-<div class="stat"><span>Shirts</span><b id="shirts">0</b></div>
-<div class="stat"><span>Trousers</span><b id="trousers">0</b></div>
-<div class="stat"><span>Pants</span><b id="pants">0</b></div>
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand">Stitch<span>Master</span></div>
+  <div class="tabs">
+    <button data-tab="stock" class="active">▦ &nbsp; Dashboard / Stock</button>
+    <button data-tab="entry">＋ &nbsp; Add Stock / Sale</button>
+    <button data-tab="history">◷ &nbsp; History</button>
+  </div>
+  <div class="sidebar-foot">SMART INVENTORY<br><b>For your stitching unit</b><br><br>Shirts · Pants · Trousers</div>
+</aside>
+<main class="main">
+  <header class="topbar">
+    <div><h1>Dashboard</h1><span class="muted">Inventory overview · Your private clothing stock</span></div>
+    <div class="right"><span class="muted">Admin</span><button id="logout" class="secondary">Logout</button></div>
+  </header>
+  <div id="msg" class="notice hidden"></div>
+  <div class="grid">
+    <div class="stat"><span>Total pieces in stock</span><b id="total">0</b></div>
+    <div class="stat"><span>Shirts</span><b id="shirts">0</b></div>
+    <div class="stat"><span>Pants</span><b id="pants">0</b></div>
+    <div class="stat"><span>Trousers</span><b id="trousers">0</b></div>
+  </div>
+  <section id="stock" class="panel">
+    <div class="section-head"><div><h2>Stock Overview</h2><span class="muted">Current available quantities</span></div><button id="refresh" class="secondary">↻ Refresh</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Available pieces</th><th>Last updated</th></tr></thead><tbody id="stockRows"></tbody></table></div>
+  </section>
+  <section id="entry" class="panel hidden">
+    <h2>Stock Entry</h2><p class="muted">Add newly stitched stock or record a sale.</p>
+    <div class="row"><div><label>Product</label><select id="product"></select></div><div><label>Type</label><select id="type"><option value="IN">Add Stock</option><option value="OUT">Sale Out</option></select></div></div>
+    <label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
+    <label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. stitched batch / customer sale">
+    <button id="save" style="margin-top:17px">Save Entry</button>
+  </section>
+  <section id="history" class="panel hidden">
+    <div class="section-head"><div><h2>Stock History</h2><span class="muted">Recent stock additions and sales</span></div><button id="csv" class="secondary">↓ Download CSV</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+  </section>
+  <p class="muted" style="margin-top:18px">Your account data is private to that account. Keep your login password safe.</p>
+</main>
 </div>
-<div class="tabs"><button data-tab="stock">Stock</button><button data-tab="entry" class="secondary">Add / Sale</button><button data-tab="history" class="secondary">History</button></div>
-<section id="stock" class="panel"><div class="right" style="justify-content:space-between"><h2>Current Stock</h2><button id="refresh" class="secondary">Refresh</button></div>
-<div class="tablewrap"><table><thead><tr><th>Product</th><th>Available pieces</th><th>Updated</th></tr></thead><tbody id="stockRows"></tbody></table></div></section>
-<section id="entry" class="panel hidden"><h2>Stock Entry</h2><div class="row">
-<div><label>Product</label><select id="product"></select></div>
-<div><label>Type</label><select id="type"><option value="IN">Add Stock</option><option value="OUT">Sale Out</option></select></div>
-</div><label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
-<label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. stitched batch / customer sale">
-<button id="save" style="margin-top:15px">Save Entry</button></section>
-<section id="history" class="panel hidden"><h2>Stock History</h2><div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead><tbody id="historyRows"></tbody></table></div>
-<button id="csv" class="secondary" style="margin-top:14px">Download History CSV</button></section>
-<p class="muted">Your account's data is private to that account. Keep your login password safe.</p>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -68,7 +103,7 @@ async function showApp(){$('auth').classList.add('hidden');$('app').classList.re
 $('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')}
 $('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)}
 $('logout').onclick=()=>db.auth.signOut();
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('secondary',x!==b));['stock','entry','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b));['stock','entry','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
 $('refresh').onclick=load;
 async function load(){
  hide('msg');
