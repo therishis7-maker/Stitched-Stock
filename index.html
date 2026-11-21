@@ -86,7 +86,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <label>Design Price (Rs.) — same for S, M, L, XL and XXL</label><input id="designPrice" type="number" min="0" step="0.01" placeholder="e.g. 4999">
     <div class="muted" style="margin-top:8px">Fabric, colour aur price Stock Save ke sath automatically save ho jayenge.</div>
     <p class="muted">Fabric, color aur price design ke saath save honge. Har size ka price isi design wala rahega.</p>
-    <label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
+    <label>Quantity (pieces)</label><input id="qty" type="number" min="1" max="500" step="1" placeholder="e.g. 25">
     <label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. batch / stitching date">
     <button id="save" style="margin-top:17px">Save Batch & Generate QR</button>
     <div id="batchResult" class="hidden"><div class="section-head" style="margin-top:22px"><div><h2>Generated QR Labels</h2><span id="batchSummary" class="muted"></span></div><button id="printLabels" class="secondary">Print Labels</button></div><div id="labelArea" class="label-grid print-area"></div></div>
@@ -239,32 +239,53 @@ async function loadSizes(){
 }
 $('save').onclick=async()=>{
  const id=$('product').value,size=$('size').value,qty=Number($('qty').value),note=$('note').value.trim()||null;
- if(!id||!Number.isInteger(qty)||qty<1){msg('msg','Product select karein aur quantity 1 ya us se zyada whole number honi chahiye.',true);return}
+ if(!id){msg('msg','Pehle product select karein.',true);return}
+ if(!Number.isSafeInteger(qty)||qty<1||qty>500){msg('msg','Quantity 1 se 500 ke darmiyan whole number honi chahiye. 500 se zyada stock ko alag batches mein add karein.',true);return}
  const rawPrice=$('designPrice').value.trim();
  const price=rawPrice===''?null:Number(rawPrice);
- if(price!==null&&(!Number.isFinite(price)||price<0)){msg('msg','Price 0 ya us se zyada honi chahiye.',true);return}
+ if(price===null||!Number.isFinite(price)||price<=0){msg('msg','Design Price zaroor enter karein aur 0 se zyada honi chahiye.',true);return}
+ if(!window.QRCode){msg('msg','QR generator library load nahi hui. Internet check karein; stock add nahi kiya gaya.',true);return}
  $('save').disabled=true;hide('batchResult');hide('msg');
  try{
-  // Save design info first, so the QR label uses the latest inputs.
+  // Save the design details first so all garment sizes use the same current design price.
   const {error:designError}=await db.from('products').update({
    fabric_name:$('fabricName').value.trim()||null,
    color:$('designColor').value.trim()||null,
    price
   }).eq('id',id);
   if(designError){msg('msg','Design details save nahi huin, stock add nahi hua: '+designError.message,true);return}
-  const {data,error}=await db.rpc('add_garment_batch',{p_product_id:id,p_size:size,p_quantity:qty,p_note:note});
-  if(error){msg('msg','Design details save ho gayin, lekin batch save nahi hua: '+error.message,true);await load();return}
+  const {data:rpcData,error:batchError}=await db.rpc('add_garment_batch',{p_product_id:id,p_size:size,p_quantity:qty,p_note:note});
+  if(batchError){msg('msg','Design details save ho gayin, lekin batch save nahi hua: '+batchError.message,true);await load();return}
   const fresh=await db.from('products').select('id,name,category,quantity,updated_at,fabric_name,color,price').order('name');
-  if(fresh.error){msg('msg','Batch save ho gaya, lekin updated product details load nahi ho sakin: '+fresh.error.message,true);await load();return}
+  if(fresh.error){msg('msg','Batch save ho gaya, lekin product details refresh nahi ho sakin. Stock dobara add na karein. Error: '+fresh.error.message,true);return}
   rows=fresh.data||[];
-  let codes=Array.isArray(data)?data:(data?.qr_codes||data?.codes||[]);
-  if(!codes.length){msg('msg','Batch RPC successful hua, lekin response mein QR codes ki list nahi mili. Stock dobara add na karein; database result check karna hoga.',true);await load();return}
-  batchCodes=codes.map(c=>typeof c==='string'?c:(c.qr_code||c.code||'')).filter(Boolean);
+  let codes=Array.isArray(rpcData)?rpcData:(rpcData?.qr_codes||rpcData?.codes||rpcData?.data||[]);
+  if(typeof codes==='string')codes=[codes];
+  batchCodes=(Array.isArray(codes)?codes:[]).map(c=>typeof c==='string'?c:(c?.qr_code||c?.code||'')).filter(Boolean);
+  if(batchCodes.length!==qty){
+   msg('msg',`Stock database mein add ho gaya, lekin ${qty} ke muqable ${batchCodes.length} QR codes mile. Labels nahi banaye. Stock dobara add NA karein; database/QR result check karein.`,true);
+   await load();return;
+  }
   $('labelArea').innerHTML='';const design=rows.find(x=>x.id===id)||{};const productName=design.name||'Garment';
-  batchCodes.forEach(code=>{const card=document.createElement('div');card.className='qr-label';const brand=document.createElement('div');brand.className='label-brand';brand.textContent='ZANIS';const title=document.createElement('b');title.textContent=productName;const category=document.createElement('div');category.textContent='Category: '+(design.category||'Other');const qr=document.createElement('div');const priceEl=document.createElement('div');priceEl.className='label-price';priceEl.textContent=money(design.price);const details=document.createElement('div');details.textContent='Size: '+size+' · Colour: '+(design.color||'—');const txt=document.createElement('div');txt.className='qr-code-text';txt.textContent=code;card.append(brand,title,category,qr,priceEl,details,txt);$('labelArea').append(card);if(window.QRCode)new QRCode(qr,{text:code,width:120,height:120});});
+  let qrRenderFailed=false;
+  batchCodes.forEach(code=>{
+   const card=document.createElement('div');card.className='qr-label';
+   const brand=document.createElement('div');brand.className='label-brand';brand.textContent='ZANIS';
+   const title=document.createElement('b');title.textContent=productName;
+   const category=document.createElement('div');category.textContent='Category: '+(design.category||'Other');
+   const qr=document.createElement('div');
+   const priceEl=document.createElement('div');priceEl.className='label-price';priceEl.textContent=money(design.price);
+   const details=document.createElement('div');details.textContent='Size: '+size+' · Colour: '+(design.color||'—');
+   const txt=document.createElement('div');txt.className='qr-code-text';txt.textContent=code;
+   card.append(brand,title,category,qr,priceEl,details,txt);$('labelArea').append(card);
+   try{new QRCode(qr,{text:code,width:120,height:120});if(!qr.querySelector('canvas,img'))qrRenderFailed=true}catch(e){qrRenderFailed=true}
+  });
   $('batchSummary').textContent=`${batchCodes.length} QR labels generated for ${productName}, size ${size}.`;
-  show('batchResult');$('qty').value='';$('note').value='';msg('msg','Stock aur design details dono save ho gaye. Har size ki price same rahegi. Labels print kar sakte hain.');await load();
- }catch(err){msg('msg','Unexpected error: '+(err?.message||err),true)}
+  show('batchResult');$('qty').value='';$('note').value='';
+  if(qrRenderFailed){msg('msg','Stock aur QR codes save ho gaye, lekin ek ya zyada QR images render nahi huin. Print na karein; internet/QR library check karein.',true)}
+  else msg('msg','Stock aur design details save ho gaye. Har size ki price same rahegi. Labels print kar sakte hain.');
+  await load();
+ }catch(err){msg('msg','Unexpected error: '+(err?.message||err)+'. Agar stock add ho chuka ho to dobara batch save na karein.',true)}
  finally{$('save').disabled=false}
 };
 $('printLabels').onclick=()=>window.print();
