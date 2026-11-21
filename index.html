@@ -52,6 +52,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <button data-tab="entry">＋ &nbsp; Add Stock</button>
     <button data-tab="sales">৳ &nbsp; Sales</button>
     <button data-tab="billing">▤ &nbsp; Billing</button>
+    <button data-tab="exchange">↺ &nbsp; Exchange / Credit</button>
     <button data-tab="sizes">↔ &nbsp; Size-wise Stock</button>
     <button data-tab="qr">▣ &nbsp; QR Scanner</button>
     <button data-tab="history">◷ &nbsp; History</button>
@@ -106,11 +107,22 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <div class="cart-total"><span>Invoice Total</span><span id="checkoutTotal">Rs. 0</span></div>
     <h2 style="margin-top:22px">Customer Details <span class="muted">(optional)</span></h2>
     <div class="form-grid"><div><label>Customer Name</label><input id="customerName" maxlength="120" placeholder="Customer name (optional)"></div><div><label>Customer Phone</label><input id="customerPhone" maxlength="40" placeholder="03XX-XXXXXXX (optional)"></div></div>
+    <h2 style="margin-top:22px">Store Credit Voucher <span class="muted">(optional)</span></h2>
+    <label>Voucher Code</label><input id="billVoucherCode" autocomplete="off" placeholder="e.g. SC-XXXXXXXXXXXX">
+    <div id="voucherPreviewMsg" class="notice hidden"></div>
     <h2 style="margin-top:22px">Payment</h2><p class="muted">Cash, Card aur Online mix kar sakte hain. Amount blank chhorne par payment add nahi hogi. Zero payment ka matlab unpaid invoice.</p>
     <div id="paymentRows"></div><button id="addPayment" class="secondary" type="button">＋ Add another payment</button>
     <div class="actions" style="margin-top:18px"><button id="checkout" type="button">Complete Sale & Generate Invoice</button><button id="clearCart" class="secondary" type="button">Clear Cart</button></div>
     <div id="billingMsg" class="notice hidden"></div>
     <div id="invoicePreview"></div>
+  </section>
+  <section id="exchange" class="panel hidden">
+    <div class="section-head"><div><h2>Exchange & Store Credit</h2><span class="muted">Return a sold garment within 3 days to issue a credit voucher. No cash refunds.</span></div></div>
+    <label>Returned garment QR code</label><div class="row"><input id="exchangeQr" placeholder="Scan or paste returned garment QR"><button id="exchangeIssue" type="button">Verify & Issue Credit</button></div>
+    <label>Reason (optional)</label><input id="exchangeReason" maxlength="200" placeholder="Optional exchange note">
+    <div id="exchangeMsg" class="notice hidden"></div>
+    <div id="exchangeResult" class="panel hidden" style="margin-top:14px;background:#f7faff"></div>
+    <p class="muted" style="margin-top:14px">Credit vouchers are non-cash. The original invoice and 3-day exchange rule are checked by the database function.</p>
   </section>
   <section id="sizes" class="panel hidden">
     <div class="section-head"><div><h2>Size-wise Stock</h2><span class="muted">Live available quantity by product and size</span></div><button id="sizesRefresh" class="secondary">↻ Refresh</button></div>
@@ -182,8 +194,11 @@ $('closeAdminModal').onclick=()=>hide('adminModal');adminModal.addEventListener(
 $('myProfile').onclick=async()=>{const {data:{user}}=await db.auth.getUser();openAdminModal('My Profile',`<p><b>Account email</b></p><p class="muted">${esc(user?.email||'—')}</p><p class="muted">Sale Central account profile</p>`)};
 $('changePassword').onclick=()=>{openAdminModal('Change Password',`<label>New password</label><input id="newAdminPassword" type="password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmAdminPassword" type="password" placeholder="Re-enter new password"><div id="passwordNotice" class="notice hidden"></div><button id="saveAdminPassword" type="button" style="margin-top:12px">Update Password</button>`);$('saveAdminPassword').onclick=async()=>{const a=$('newAdminPassword').value,b=$('confirmAdminPassword').value;if(a.length<6){msg('passwordNotice','Password kam az kam 6 characters ka hona chahiye.',true);return}if(a!==b){msg('passwordNotice','Dono passwords match nahi karte.',true);return}const {error}=await db.auth.updateUser({password:a});if(error)msg('passwordNotice',error.message,true);else msg('passwordNotice','Password successfully update ho gaya.')};};
 $('settingsBtn').onclick=()=>openAdminModal('Settings',`<p><b>Brand</b></p><p class="muted">Sale Central</p><p><b>Theme</b></p><p class="muted">Navy blue &amp; blue, light dashboard</p><p class="muted">This panel is a basic account settings overview.</p>`);
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing')loadInvoices()});
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing')loadInvoices()});
 $('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;
+$('exchangeIssue').onclick=issueExchangeCredit;
+$('exchangeQr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();issueExchangeCredit()}});
+$('billVoucherCode').addEventListener('input',()=>{hide('voucherPreviewMsg');});
 function fillDesignFields(){
  const p=rows.find(x=>x.id===$('product').value);
  $('fabricName').value=p?.fabric_name||'';
@@ -284,6 +299,20 @@ $('scanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefau
 $('confirmSale').onclick=()=>{if(!stagedGarment||!stagedQr)return;if(cart.some(x=>x.qr_code===stagedQr)){msg('scanResult','Yeh garment cart mein pehle se hai.',true);return}cart.push(stagedGarment);renderCart();stagedQr='';stagedGarment=null;$('scanInput').value='';hide('confirmSale');$('scanResult').textContent='Garment cart mein add ho gaya. Agla QR scan karein ya Billing tab mein checkout karein.'};
 function money(n){return 'Rs. '+Number(n||0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function billingMessage(t,bad=false){const el=$('billingMsg');el.textContent=t;el.className='notice '+(bad?'error':'success')}
+async function issueExchangeCredit(){
+ const code=$('exchangeQr').value.trim();if(!code){$('exchangeMsg').textContent='Returned QR code enter karein.';$('exchangeMsg').className='notice error';show('exchangeMsg');return}
+ const btn=$('exchangeIssue');btn.disabled=true;$('exchangeMsg').textContent='QR, original invoice aur exchange period verify ho rahe hain…';$('exchangeMsg').className='notice';show('exchangeMsg');hide('exchangeResult');
+ try{
+  const {data,error}=await db.rpc('issue_exchange_credit',{p_returned_qr_code:code,p_reason:$('exchangeReason').value.trim()||null});
+  if(error)throw error;
+  const result=data||{};
+  $('exchangeResult').innerHTML=`<h2>Credit Voucher Issued</h2><p>Original invoice: <b>${esc(result.original_invoice_number||'')}</b></p><p>Returned QR: <b>${esc(result.returned_qr_code||code)}</b></p><p>Credit amount: <b>${money(result.credit_amount)}</b></p><p>Voucher Code: <b style="font-size:20px;letter-spacing:1px">${esc(result.voucher_code||'')}</b></p><p class="muted">Expiry: ${result.expires_at?new Date(result.expires_at).toLocaleString():'—'}</p><button type="button" class="secondary" id="copyVoucherCode">Copy Voucher Code</button>`;
+  show('exchangeResult');$('exchangeMsg').textContent='Exchange approved. Returned garment stock restored and credit voucher created.';$('exchangeMsg').className='notice success';
+  $('copyVoucherCode').onclick=()=>{if(navigator.clipboard&&result.voucher_code)navigator.clipboard.writeText(result.voucher_code).then(()=>{$('exchangeMsg').textContent='Voucher code copied.'}).catch(()=>{$('exchangeMsg').textContent='Code select karke copy karein: '+result.voucher_code});};
+  $('exchangeQr').value='';$('exchangeReason').value='';await load();
+ }catch(err){$('exchangeMsg').textContent='Exchange fail: '+(err.message||String(err));$('exchangeMsg').className='notice error';}
+ btn.disabled=false;
+}
 function renderCart(){
  $('cartCount').textContent=cart.length;
  const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
@@ -298,12 +327,12 @@ function addPaymentRow(method='cash',amount=''){
  const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Remove';remove.onclick=()=>{row.remove()};row.append(methodWrap,amountWrap,remove);$('paymentRows').append(row);
 }
 $('addPayment').onclick=()=>addPaymentRow('cash','');
-$('clearCart').onclick=()=>{cart=[];renderCart();billingMessage('Cart clear kar diya gaya.');};
+$('clearCart').onclick=()=>{cart=[];renderCart();$('billVoucherCode').value='';billingMessage('Cart clear kar diya gaya.');};
 function renderInvoice(inv,items,payments){
  const rowsHtml=items.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.unit_price??x.price)}</td></tr>`).join('');
  const payHtml=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'').toUpperCase())}</td><td>${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td>Unpaid</td></tr>';
  const status=inv.payment_status||'unpaid';
- const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2>Sale Central</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date().toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with Sale Central!</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
+ const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2>Sale Central</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date().toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with Sale Central!</p><p style="text-align:center;font-size:11px;margin-top:12px;color:#667085"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
  $('invoicePreview').innerHTML=html;
  $('downloadInvoicePdf').onclick=()=>downloadInvoicePdf(inv,items,payments);
  $('printInvoice').onclick=()=>printInvoice(inv,items,payments);
@@ -317,7 +346,7 @@ function downloadInvoicePdf(inv,items,payments){
  line('SALE CENTRAL',20,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
  items.forEach((x,i)=>line(`${i+1}. ${x.product_name} | Size ${x.size} | QR ${x.qr_code} | ${money(x.unit_price??x.price)}`));
  y+=4;line('PAYMENTS',12,true);if(payments.length)payments.forEach(x=>line(`${String(x.method||x.payment_method||'').toUpperCase()}: ${money(x.amount)}`));else line('No payment received');
- y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with Sale Central!');
+ y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with Sale Central!');y+=5;line('EXCHANGE POLICY: Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.',9,false);
  doc.save((inv.invoice_number||'Sale Central-Invoice')+'.pdf');
 }
 function printInvoice(inv,items,payments){
@@ -333,16 +362,28 @@ async function loadInvoices(){
 $('checkout').onclick=async()=>{
  if(!cart.length){billingMessage('Checkout se pehle QR Scanner se garments cart mein add karein.',true);return}
  const total=cart.reduce((a,x)=>a+Number(x.price||0),0);if(cart.some(x=>x.price==null||!Number.isFinite(Number(x.price)))){billingMessage('Cart mein kisi design ki price missing hai.',true);return}
+ const voucherCode=$('billVoucherCode').value.trim();let voucherBalance=0,creditUsed=0;
+ if(voucherCode){
+  const {data:v,error:ve}=await db.from('store_credit_vouchers').select('remaining_amount,status,expires_at').eq('voucher_code',voucherCode).maybeSingle();
+  if(ve){billingMessage('Voucher verify nahi ho saka: '+ve.message,true);return}
+  if(!v){billingMessage('Voucher code nahi mila.',true);return}
+  if(v.status!=='active'){billingMessage('Voucher active nahi hai.',true);return}
+  if(v.expires_at&&new Date(v.expires_at)<=new Date()){billingMessage('Voucher expire ho chuka hai.',true);return}
+  voucherBalance=Number(v.remaining_amount||0);if(voucherBalance<=0){billingMessage('Voucher mein remaining credit nahi.',true);return}
+  creditUsed=Math.min(total,voucherBalance);
+ }
  const payments=[];for(const row of $('paymentRows').querySelectorAll('.payment-row')){const method=row.querySelector('.pay-method').value;const raw=row.querySelector('.pay-amount').value.trim();if(raw==='')continue;const amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){billingMessage('Payment amount zero se zyada hona chahiye.',true);return}payments.push({method,amount:Number(amount.toFixed(2))})}
- const paid=payments.reduce((a,x)=>a+x.amount,0);if(paid>total+0.001){billingMessage('Payment total invoice total se zyada nahi ho sakta.',true);return}
- $('checkout').disabled=true;billingMessage('Invoice save ho raha hai aur stock update ho raha hai…');
- const payload={p_qr_codes:cart.map(x=>x.qr_code),p_customer_name:$('customerName').value.trim()||null,p_customer_phone:$('customerPhone').value.trim()||null,p_payments:payments};
- const {data,error}=await db.rpc('complete_stitchmaster_invoice',payload);
+ const paid=payments.reduce((a,x)=>a+x.amount,0);if(paid+creditUsed>total+0.001){billingMessage('Cash/card/online + voucher credit invoice total se zyada nahi ho sakta.',true);return}
+ $('checkout').disabled=true;billingMessage('Invoice save ho raha hai aur stock/voucher update ho raha hai…');
+ const basePayload={p_qr_codes:cart.map(x=>x.qr_code),p_customer_name:$('customerName').value.trim()||null,p_customer_phone:$('customerPhone').value.trim()||null,p_payments:payments};
+ const payload=voucherCode?{...basePayload,p_voucher_code:voucherCode}:basePayload;
+ const {data,error}=await db.rpc(voucherCode?'complete_sale_with_store_credit':'complete_stitchmaster_invoice',payload);
  $('checkout').disabled=false;
  if(error){billingMessage('Sale complete nahi hui: '+error.message,true);return}
  const inv={...data,customer_name:payload.p_customer_name,customer_phone:payload.p_customer_phone};
  const items=cart.map(x=>({product_name:x.product_name,size:x.size,qr_code:x.qr_code,unit_price:Number(x.price),line_total:Number(x.price)}));
- renderInvoice(inv,items,payments);cart=[];renderCart();$('customerName').value='';$('customerPhone').value='';$('paymentRows').innerHTML='';addPaymentRow('cash','');billingMessage('Invoice successfully create ho gaya. Stock deduct ho gaya aur QR codes sold mark ho gaye.');await load();await loadInvoices();
+ const displayPayments=payments.slice();if(data.voucher_credit_used>0)displayPayments.unshift({method:'store credit voucher',amount:data.voucher_credit_used});
+ renderInvoice(inv,items,displayPayments);cart=[];renderCart();$('customerName').value='';$('customerPhone').value='';$('billVoucherCode').value='';$('paymentRows').innerHTML='';addPaymentRow('cash','');billingMessage('Invoice successfully create ho gaya. Stock deduct aur voucher update ho gaya.');await load();await loadInvoices();
 };
 addPaymentRow('cash','');renderCart();
 
