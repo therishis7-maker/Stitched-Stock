@@ -1,217 +1,435 @@
--- Sale Central: Voucher-aware checkout RPC (additive; does not replace existing billing RPC)
--- Run in Supabase SQL Editor as a NEW QUERY.
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sale Central</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
+*{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
+button{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;transition:.18s}
+button:hover{filter:brightness(.96);transform:translateY(-1px)}button.secondary{background:#eaf0fa;color:#29436d}button:disabled{opacity:.5;cursor:not-allowed}
+input,select{width:100%;padding:12px 13px;border:1px solid #d8e1ef;border-radius:10px;background:#fff;color:#182235;font:inherit;outline:none}
+input:focus,select:focus{border-color:#6d98ed;box-shadow:0 0 0 3px #2463d91a}
+label{display:block;font-size:13px;font-weight:700;margin:14px 0 7px;color:#344563}
+h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-size:17px;margin:0 0 14px;color:#1b3155}
+.muted{color:var(--muted);font-size:13px}.wrap{max-width:1280px;margin:auto;padding:26px}
+.panel,.stat{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px;box-shadow:0 5px 20px #1c37600a}
+.auth{max-width:430px;margin:9vh auto;padding:30px}.auth h1{color:var(--blue)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin:22px 0}
+.stat{padding:19px;background:linear-gradient(145deg,#fff,#f7faff)}.stat span{font-size:13px;color:#687b9b;font-weight:650}.stat b{display:block;font-size:31px;margin-top:8px;color:#173665}
+.stat:before{content:"";display:block;width:34px;height:4px;border-radius:8px;background:#4e83e8;margin-bottom:13px}
+.app-shell{display:grid;grid-template-columns:235px minmax(0,1fr);gap:24px;align-items:start}
+.sidebar{background:var(--navy);color:#fff;border-radius:20px;padding:22px 15px;min-height:calc(100vh - 52px);position:sticky;top:26px}
+.brand{font-size:21px;font-weight:800;padding:5px 10px 24px;letter-spacing:-.5px}.brand span{color:#8db6ff}
+.tabs{display:flex;flex-direction:column;gap:7px;margin:10px 0}.tabs button{text-align:left;background:transparent;color:#dce7fb;padding:13px 14px;border-radius:11px}.tabs button.active{background:#2865d7;color:white;box-shadow:0 5px 14px #071a3a55}
+.sidebar-foot{border-top:1px solid #ffffff26;margin-top:28px;padding:18px 10px;color:#c5d4ed;font-size:12px;line-height:1.6}
+.main{min-width:0}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:20px}.topbar .right{display:flex;gap:9px;align-items:center}
+.right{display:flex;gap:8px;align-items:center}.notice{padding:12px 14px;border-radius:11px;background:#edf3ff;color:#23427d;margin:12px 0;font-size:14px}.error{background:#fff0f0;color:#9d2525}.success{background:#eaf8ef;color:#176b37}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;padding:13px 11px;border-bottom:1px solid #edf0f5;font-size:13px;white-space:nowrap}th{color:#6c7d98;font-weight:700;background:#f7f9fd}td{color:#344563}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.label-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-top:18px}.qr-label{border:1px solid #ccd6e5;border-radius:10px;padding:12px;text-align:center;break-inside:avoid}.qr-label canvas,.qr-label img{display:block;margin:8px auto;max-width:130px}.qr-code-text{font-size:11px;overflow-wrap:anywhere;color:#344563}.scan-box{max-width:520px;margin:12px 0}.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.mini-stat{background:#f7faff;border:1px solid var(--line);border-radius:13px;padding:15px}.mini-stat span{display:block;color:var(--muted);font-size:12px;font-weight:700}.mini-stat b{display:block;color:#173665;font-size:23px;margin-top:7px}.pending{font-size:12px;color:#64748b;background:#f1f5f9;border-radius:20px;padding:5px 9px;display:inline-block}.cart-total{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-weight:700}.payment-row{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;align-items:end;margin:10px 0}.invoice-card{background:#fff;border:1px solid #dce4f0;border-radius:14px;padding:22px;margin-top:18px;color:#17233d}.invoice-head{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #1e3d70;padding-bottom:14px;margin-bottom:14px}.invoice-head h2{font-size:23px}.invoice-total{font-size:20px;font-weight:800;color:#173665}.status-pill{display:inline-block;border-radius:30px;padding:5px 10px;background:#eaf8ef;color:#176b37;font-size:12px;font-weight:800}.status-pill.partial{background:#fff6df;color:#8a5a00}.status-pill.unpaid{background:#fff0f0;color:#9d2525}
+.brand{font-size:22px;letter-spacing:-.4px;color:#fff}.brand span{color:inherit}
+.stat:before{display:none}.stat{position:relative;padding-top:16px}.product-icon{display:inline-flex;width:30px;height:30px;border-radius:8px;background:#edf4ff;align-items:center;justify-content:center;font-size:16px;margin-right:9px;vertical-align:middle}.stat-icon{display:flex;width:48px;height:48px;border-radius:50%;background:#edf4ff;align-items:center;justify-content:center;font-size:24px;margin-bottom:13px}
+.sidebar-foot{padding:17px 8px}.foot-brand{font-weight:800;font-size:13px;letter-spacing:.3px}.foot-sub{margin:3px 0 14px;font-size:12px;color:#c5d4ed}.quick-link{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;margin:5px 0;background:#17396c;color:#eaf2ff;padding:10px 12px;border-radius:12px;font-weight:600;font-size:12px}.quick-link:hover{background:#2456a3;transform:none}.support-link{border-top:1px solid #ffffff26;margin-top:15px;padding:15px 3px 0;font-weight:700;font-size:12px}.support-link span{font-weight:400;color:#c5d4ed}.admin-wrap{position:relative}.admin-toggle{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #dce7f8}.admin-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:210px;background:white;border:1px solid var(--line);border-radius:13px;padding:8px;box-shadow:0 12px 32px #132b4a25;z-index:30}.admin-menu button{display:block;width:100%;text-align:left;background:transparent;color:#203858;padding:11px 12px;font-weight:600}.admin-menu button:hover{background:#f0f5ff;transform:none}.menu-divider{border-top:1px solid var(--line);margin:5px 0}.admin-menu .logout-menu{color:#b42332}.modal-backdrop{position:fixed;inset:0;background:#071a3a70;display:flex;align-items:center;justify-content:center;padding:18px;z-index:50}.admin-modal{width:min(440px,100%);max-height:90vh;overflow:auto}.admin-modal label{margin-top:10px}.admin-modal p{margin:8px 0}.modal-backdrop.hidden{display:none!important}
+@media(max-width:800px){.mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:800px){.wrap{padding:15px}.app-shell{grid-template-columns:1fr;gap:15px}.sidebar{min-height:0;position:static;padding:14px}.brand{padding:4px 7px 12px}.tabs{flex-direction:row;overflow:auto}.tabs button{white-space:nowrap;padding:11px}.sidebar-foot{display:block}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:15px}.stat b{font-size:26px}.panel{padding:16px}}
+@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%}.qr-label{display:inline-block;width:180px;margin:5px}}
+@media(max-width:480px){.row,.form-grid{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbar .right{flex-direction:column;align-items:flex-end}.grid{gap:8px}.stat b{font-size:23px}}
+</style></head><body>
+<div id="auth" class="wrap auth panel">
+<h1>Sale Central</h1><p class="muted">Sign in to your inventory account.</p>
+<div id="authMsg" class="notice hidden"></div>
+<label>Email</label><input id="email" type="email" placeholder="Your email">
+<label>Password</label><input id="password" type="password" placeholder="At least 6 characters">
+<div class="actions" style="margin-top:16px"><button id="signup">Create my account</button><button id="login" class="secondary">Login</button></div>
+<p class="muted">Pehli dafa Create my account karein. Account confirm karne ke liye email aa sakti hai.</p>
+</div>
+<div id="app" class="wrap hidden">
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand">Sale Central</div>
+  <div class="tabs">
+    <button data-tab="stock" class="active">▦ &nbsp; Dashboard</button>
+    <button data-tab="entry">＋ &nbsp; Add Stock</button>
+    <button data-tab="sales">৳ &nbsp; Sales</button>
+    <button data-tab="billing">▤ &nbsp; Billing</button>
+    <button data-tab="exchange">↺ &nbsp; Exchange / Credit</button>
+    <button data-tab="sizes">↔ &nbsp; Size-wise Stock</button>
+    <button data-tab="qr">▣ &nbsp; QR Scanner</button>
+    <button data-tab="history">◷ &nbsp; History</button>
+  </div>
+  <div class="sidebar-foot"><div class="foot-brand">SMART INVENTORY</div><div class="foot-sub">For your stitching unit</div>
+  <button type="button" class="quick-link" data-tab="sizes">👕 &nbsp; Size-wise Stock <span>›</span></button>
+  <button type="button" class="quick-link" data-tab="sales">▥ &nbsp; Sales Reports <span>›</span></button>
+  <button type="button" class="quick-link" data-tab="qr">▦ &nbsp; QR Management <span>›</span></button>
+  <div class="support-link">♧ &nbsp; Need Help?<br><span>Contact Support</span></div></div>
+</aside>
+<main class="main">
+  <header class="topbar">
+    <div><h1>Dashboard</h1><span class="muted">Inventory, sizes and sales overview</span></div>
+    <div class="right"><div class="admin-wrap"><button id="adminToggle" class="admin-toggle secondary" type="button">👤 Admin <span>⌄</span></button>
+  <div id="adminMenu" class="admin-menu hidden"><button type="button" id="myProfile">♙ &nbsp; My Profile</button><button type="button" id="changePassword">🔒 &nbsp; Change Password</button><button type="button" id="settingsBtn">⚙ &nbsp; Settings</button><div class="menu-divider"></div><button type="button" id="logout" class="logout-menu">↪ &nbsp; Logout</button></div></div></div>
+  </header>
+  <div id="msg" class="notice hidden"></div>
+  <div class="grid">
+    <div class="stat"><div class="stat-icon">👕</div><span>Total pieces in stock</span><b id="total">0</b></div>
+    <div class="stat"><div class="stat-icon">📦</div><span>Pieces sold</span><b id="soldTotal">0</b></div>
+    <div class="stat"><div class="stat-icon">🏷️</div><span>Stock designs</span><b id="designTotal">0</b></div>
+    <div class="stat"><div class="stat-icon">📅</div><span>Today sold</span><b id="todaySold">0</b></div>
+  </div>
+  <section id="stock" class="panel">
+    <div class="section-head"><div><h2>Stock Overview</h2><span class="muted">Current available quantities</span></div><button id="refresh" class="secondary">↻ Refresh</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Available pieces</th><th>Last updated</th></tr></thead><tbody id="stockRows"></tbody></table></div>
+  </section>
+  <section id="entry" class="panel hidden">
+    <h2>Add Stitched Stock</h2><p class="muted">Har piece ka unique QR code banega. Stock tabhi add hoga jab batch save hoga.</p>
+    <div class="form-grid"><div><label>Product / Design</label><select id="product"></select></div><div><label>Size</label><select id="size"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></div></div>
+    <h2 style="margin-top:20px">Design Details (all sizes share this price)</h2>
+    <div class="form-grid"><div><label>Fabric Name</label><input id="fabricName" maxlength="100" placeholder="e.g. Silk"></div><div><label>Color</label><input id="designColor" maxlength="60" placeholder="e.g. Black"></div></div>
+    <label>Design Price (Rs.) — same for S, M, L, XL and XXL</label><input id="designPrice" type="number" min="0" step="0.01" placeholder="e.g. 4999">
+    <button id="saveDesign" class="secondary" style="margin-top:12px">Save Design Details</button>
+    <p class="muted">Fabric, color aur price design ke saath save honge. Har size ka price isi design wala rahega.</p>
+    <label>Quantity (pieces)</label><input id="qty" type="number" min="1" step="1" placeholder="e.g. 25">
+    <label>Note (optional)</label><input id="note" maxlength="200" placeholder="e.g. batch / stitching date">
+    <button id="save" style="margin-top:17px">Save Batch & Generate QR</button>
+    <div id="batchResult" class="hidden"><div class="section-head" style="margin-top:22px"><div><h2>Generated QR Labels</h2><span id="batchSummary" class="muted"></span></div><button id="printLabels" class="secondary">Print Labels</button></div><div id="labelArea" class="label-grid print-area"></div></div>
+  </section>
+  <section id="sales" class="panel hidden">
+    <div class="section-head"><div><h2>Sales Overview</h2><span class="muted">Confirmed QR sales (quantity only)</span></div><button class="secondary" id="salesRefresh">↻ Refresh</button></div>
+    <div class="mini-grid"><div class="mini-stat"><span>Total pieces sold</span><b id="salesAll">0</b></div><div class="mini-stat"><span>Today's pieces sold</span><b id="salesToday">0</b></div></div>
+    <p class="muted">Invoice-wise sales, received payments aur remaining balances.</p>
+    <div class="tablewrap"><table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody id="invoiceRows"><tr><td colspan="7">Loading invoices…</td></tr></tbody></table></div>
+  </section>
+  <section id="billing" class="panel hidden">
+    <div class="section-head"><div><h2>Billing & Checkout</h2><span class="muted">Scan garments in QR Scanner, add them to cart, then checkout</span></div><button id="billingRefresh" class="secondary">↻ Refresh invoices</button></div>
+    <div class="mini-grid"><div class="mini-stat"><span>Cart pieces</span><b id="cartCount">0</b></div><div class="mini-stat"><span>Cart total</span><b id="cartTotal">Rs. 0</b></div></div>
+    <h2>Current Cart</h2>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR</th><th>Price</th><th></th></tr></thead><tbody id="cartRows"><tr><td colspan="5">Cart is empty. Scan a QR code to add garments.</td></tr></tbody></table></div>
+    <div class="cart-total"><span>Invoice Total</span><span id="checkoutTotal">Rs. 0</span></div>
+    <h2 style="margin-top:22px">Customer Details <span class="muted">(optional)</span></h2>
+    <div class="form-grid"><div><label>Customer Name</label><input id="customerName" maxlength="120" placeholder="Customer name (optional)"></div><div><label>Customer Phone</label><input id="customerPhone" maxlength="40" placeholder="03XX-XXXXXXX (optional)"></div></div>
+    <h2 style="margin-top:22px">Store Credit Voucher <span class="muted">(optional)</span></h2>
+    <label>Voucher Code</label><input id="billVoucherCode" autocomplete="off" placeholder="e.g. SC-XXXXXXXXXXXX">
+    <div id="voucherPreviewMsg" class="notice hidden"></div>
+    <h2 style="margin-top:22px">Payment</h2><p class="muted">Cash, Card aur Online mix kar sakte hain. Amount blank chhorne par payment add nahi hogi. Zero payment ka matlab unpaid invoice.</p>
+    <div id="paymentRows"></div><button id="addPayment" class="secondary" type="button">＋ Add another payment</button>
+    <div class="actions" style="margin-top:18px"><button id="checkout" type="button">Complete Sale & Generate Invoice</button><button id="clearCart" class="secondary" type="button">Clear Cart</button></div>
+    <div id="billingMsg" class="notice hidden"></div>
+    <div id="invoicePreview"></div>
+  </section>
+  <section id="exchange" class="panel hidden">
+    <div class="section-head"><div><h2>Exchange & Store Credit</h2><span class="muted">Return a sold garment within 3 days to issue a credit voucher. No cash refunds.</span></div></div>
+    <label>Returned garment QR code</label><div class="row"><input id="exchangeQr" placeholder="Scan or paste returned garment QR"><button id="exchangeIssue" type="button">Verify & Issue Credit</button></div>
+    <label>Reason (optional)</label><input id="exchangeReason" maxlength="200" placeholder="Optional exchange note">
+    <div id="exchangeMsg" class="notice hidden"></div>
+    <div id="exchangeResult" class="panel hidden" style="margin-top:14px;background:#f7faff"></div>
+    <p class="muted" style="margin-top:14px">Credit vouchers are non-cash. The original invoice and 3-day exchange rule are checked by the database function.</p>
+  </section>
+  <section id="sizes" class="panel hidden">
+    <div class="section-head"><div><h2>Size-wise Stock</h2><span class="muted">Live available quantity by product and size</span></div><button id="sizesRefresh" class="secondary">↻ Refresh</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Product / Design</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>XXL</th><th>Total</th></tr></thead><tbody id="sizeRows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+  </section>
+  <section id="qr" class="panel hidden">
+    <div class="section-head"><div><h2>QR Scanner & Sale Confirmation</h2><span class="muted">Scan one garment QR, then confirm its sale</span></div></div>
+    <div class="scan-box"><label>Camera scanner</label><div id="reader" style="width:100%;max-width:480px"></div><div class="actions" style="margin-top:10px"><button id="startCamera">Start Camera</button><button id="stopCamera" class="secondary">Stop Camera</button></div></div>
+    <label>Or enter QR code manually / USB scanner</label><div class="row"><input id="scanInput" placeholder="Scan or paste QR code"><button id="checkQr">Check QR</button></div>
+    <div id="scanResult" class="qr-hint">No garment selected yet. Scan a QR code to continue.</div>
+    <button id="confirmSale" class="hidden" style="margin-top:12px">Confirm Sale & Deduct Stock</button>
+    <p class="muted" style="margin-top:12px">Camera scanning ke liye website HTTPS par open honi chahiye aur camera permission allow karni hogi. Sale confirm karne se pehle QR code verify hota hai.</p>
+  </section>
+  <section id="history" class="panel hidden">
+    <div class="section-head"><div><h2>Stock History</h2><span class="muted">Recent stock additions and sales</span></div><button id="csv" class="secondary">↓ Download CSV</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+  </section>
+  <p class="muted" style="margin-top:18px">Your account data is private to that account. Keep your login password safe.</p>
+</main>
+</div>
+</div>
+<div id="adminModal" class="modal-backdrop hidden"><div class="admin-modal panel"><div class="section-head"><h2 id="adminModalTitle">Admin</h2><button id="closeAdminModal" class="secondary" type="button">✕</button></div><div id="adminModalBody"></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// Load a pinned QR scanner build, with a second CDN as fallback.
+window.__stitchQrLibraryReady = new Promise(resolve => {
+  const load = (url, fallbackUrl) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = () => resolve(true);
+    script.onerror = () => {
+      if (fallbackUrl) load(fallbackUrl, null);
+      else resolve(false);
+    };
+    document.head.appendChild(script);
+  };
+  load('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+       'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js');
+});
+</script>
+<script>
+const SUPABASE_URL="https://fkrkokppeuulgrthjspm.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_60cBiBtkR3K5FXyNzkgUCg_wLekDsmn";
+let db, rows=[], movements=[], sizeRows=[], scanner=null, stagedQr="", stagedGarment=null, batchCodes=[], cart=[], lastInvoice=null;
+const $=x=>document.getElementById(x);
+function msg(id,t,bad=false){const el=$(id);el.textContent=t;el.className='notice '+(bad?'error':'success')}
+function hide(id){$(id).classList.add('hidden')}
+function show(id){$(id).classList.remove('hidden')}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function ready(){return !!SUPABASE_URL&&!SUPABASE_URL.startsWith('PASTE_')&&!!SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.startsWith('PASTE_')}
+async function start(){
+ if(!ready()){msg('authMsg','Supabase configuration missing.',true);return}
+ db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ const {data:{session}}=await db.auth.getSession();if(session)await showApp();
+ db.auth.onAuthStateChange((_e,s)=>{if(s)showApp();else showAuth()});
+}
+function showAuth(){$('auth').classList.remove('hidden');$('app').classList.add('hidden')}
+async function showApp(){$('auth').classList.add('hidden');$('app').classList.remove('hidden');const {error}=await db.rpc('create_my_products');if(error){msg('msg','Product setup: '+error.message,true);return}await load()}
+$('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')};
+$('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)};
+$('logout').onclick=()=>db.auth.signOut();
+const adminMenu=$('adminMenu'),adminToggle=$('adminToggle'),adminModal=$('adminModal');
+adminToggle.onclick=()=>adminMenu.classList.toggle('hidden');
+document.addEventListener('click',e=>{if(!e.target.closest('.admin-wrap'))adminMenu.classList.add('hidden')});
+function openAdminModal(title,body){$('adminModalTitle').textContent=title;$('adminModalBody').innerHTML=body;show('adminModal');adminMenu.classList.add('hidden')}
+$('closeAdminModal').onclick=()=>hide('adminModal');adminModal.addEventListener('click',e=>{if(e.target===adminModal)hide('adminModal')});
+$('myProfile').onclick=async()=>{const {data:{user}}=await db.auth.getUser();openAdminModal('My Profile',`<p><b>Account email</b></p><p class="muted">${esc(user?.email||'—')}</p><p class="muted">Sale Central account profile</p>`)};
+$('changePassword').onclick=()=>{openAdminModal('Change Password',`<label>New password</label><input id="newAdminPassword" type="password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmAdminPassword" type="password" placeholder="Re-enter new password"><div id="passwordNotice" class="notice hidden"></div><button id="saveAdminPassword" type="button" style="margin-top:12px">Update Password</button>`);$('saveAdminPassword').onclick=async()=>{const a=$('newAdminPassword').value,b=$('confirmAdminPassword').value;if(a.length<6){msg('passwordNotice','Password kam az kam 6 characters ka hona chahiye.',true);return}if(a!==b){msg('passwordNotice','Dono passwords match nahi karte.',true);return}const {error}=await db.auth.updateUser({password:a});if(error)msg('passwordNotice',error.message,true);else msg('passwordNotice','Password successfully update ho gaya.')};};
+$('settingsBtn').onclick=()=>openAdminModal('Settings',`<p><b>Brand</b></p><p class="muted">Sale Central</p><p><b>Theme</b></p><p class="muted">Navy blue &amp; blue, light dashboard</p><p class="muted">This panel is a basic account settings overview.</p>`);
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing')loadInvoices()});
+$('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;
+$('exchangeIssue').onclick=issueExchangeCredit;
+$('exchangeQr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();issueExchangeCredit()}});
+$('billVoucherCode').addEventListener('input',()=>{hide('voucherPreviewMsg');});
+function fillDesignFields(){
+ const p=rows.find(x=>x.id===$('product').value);
+ $('fabricName').value=p?.fabric_name||'';
+ $('designColor').value=p?.color||'';
+ $('designPrice').value=p?.price??'';
+}
+$('product').addEventListener('change',fillDesignFields);
+$('saveDesign').onclick=async()=>{
+ const id=$('product').value;
+ if(!id){msg('msg','Pehle product/design select karein.',true);return}
+ const raw=$('designPrice').value.trim();
+ const price=raw===''?null:Number(raw);
+ if(price!==null&&(!Number.isFinite(price)||price<0)){msg('msg','Price 0 ya us se zyada honi chahiye.',true);return}
+ $('saveDesign').disabled=true;
+ const {error}=await db.from('products').update({
+   fabric_name:$('fabricName').value.trim()||null,
+   color:$('designColor').value.trim()||null,
+   price
+ }).eq('id',id);
+ $('saveDesign').disabled=false;
+ if(error){msg('msg','Design details save nahi huin: '+error.message,true);return}
+ msg('msg','Design details successfully save ho gayin. Is design ke tamam sizes ki price same rahegi.');
+ await load();
+ fillDesignFields();
+};
 
-CREATE OR REPLACE FUNCTION public.complete_sale_with_store_credit(
-    p_qr_codes text[],
-    p_customer_name text DEFAULT NULL,
-    p_customer_phone text DEFAULT NULL,
-    p_payments jsonb DEFAULT '[]'::jsonb,
-    p_voucher_code text DEFAULT NULL
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $function$
-DECLARE
-    v_user_id uuid;
-    v_item record;
-    v_payment record;
-    v_invoice_id uuid;
-    v_invoice_number text;
-    v_total numeric(12,2) := 0;
-    v_actual_paid numeric(12,2) := 0;
-    v_credit_used numeric(12,2) := 0;
-    v_paid_total numeric(12,2) := 0;
-    v_remaining_credit numeric(12,2) := 0;
-    v_count integer := 0;
-    v_status text;
-    v_voucher_id uuid;
-    v_voucher_balance numeric(12,2) := 0;
-    v_voucher_status text;
-    v_voucher_expires timestamptz;
-    v_voucher_code text;
-BEGIN
-    v_user_id := auth.uid();
-    IF v_user_id IS NULL THEN
-        RAISE EXCEPTION 'Authentication required';
-    END IF;
+async function load(){
+ hide('msg');
+ const r=await db.from('products').select('id,name,quantity,updated_at,fabric_name,color,price').order('name');
+ if(r.error){msg('msg',r.error.message,true);return}rows=r.data||[];
+ $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+ fillDesignFields();
+ $('total').textContent=rows.reduce((a,x)=>a+Number(x.quantity||0),0);$('designTotal').textContent=rows.length;
+ $('stockRows').innerHTML=rows.map(x=>`<tr><td><span class="product-icon">👕</span>${esc(x.name)}</td><td><b>${Number(x.quantity||0)}</b></td><td>${x.updated_at?new Date(x.updated_at).toLocaleString():'—'}</td></tr>`).join('')||'<tr><td colspan="3">No products found.</td></tr>';
+ const h=await db.from('stock_movements').select('movement_type,quantity,note,created_at,products(name)').order('created_at',{ascending:false}).limit(500);
+ if(h.error){msg('msg',h.error.message,true);return}movements=h.data||[];
+ $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':'Sale Out'}</td><td>${x.quantity}</td><td>${esc(x.note||'')}</td></tr>`).join('')||'<tr><td colspan="5">No history yet.</td></tr>';
+ const sold=movements.filter(x=>x.movement_type==='OUT').reduce((a,x)=>a+Number(x.quantity||0),0);
+ const today=new Date().toDateString(), soldToday=movements.filter(x=>x.movement_type==='OUT'&&new Date(x.created_at).toDateString()===today).reduce((a,x)=>a+Number(x.quantity||0),0);
+ $('soldTotal').textContent=sold;$('todaySold').textContent=soldToday;$('salesAll').textContent=sold;$('salesToday').textContent=soldToday;
+ await loadSizes();
+ await loadInvoices();
+}
+async function loadSizes(){
+ const r=await db.from('product_sizes').select('product_id,size,quantity');
+ if(r.error){$('sizeRows').innerHTML=`<tr><td colspan="7">${esc(r.error.message)}</td></tr>`;return}
+ sizeRows=r.data||[];
+ $('sizeRows').innerHTML=rows.map(p=>{const vals=['S','M','L','XL','XXL'].map(sz=>Number(sizeRows.find(x=>x.product_id===p.id&&x.size===sz)?.quantity||0));return `<tr><td>${esc(p.name)}</td>${vals.map(v=>`<td>${v}</td>`).join('')}<td><b>${vals.reduce((a,b)=>a+b,0)}</b></td></tr>`}).join('')||'<tr><td colspan="7">No products available.</td></tr>';
+}
+$('save').onclick=async()=>{
+ const id=$('product').value,size=$('size').value,qty=Number($('qty').value),note=$('note').value.trim()||null;
+ if(!id||!Number.isInteger(qty)||qty<1){msg('msg','Product select karein aur quantity 1 ya us se zyada whole number honi chahiye.',true);return}
+ $('save').disabled=true;hide('batchResult');
+ const {data,error}=await db.rpc('add_garment_batch',{p_product_id:id,p_size:size,p_quantity:qty,p_note:note});
+ $('save').disabled=false;
+ if(error){msg('msg','Batch save nahi hua: '+error.message,true);return}
+ let codes=Array.isArray(data)?data:(data?.qr_codes||data?.codes||[]);
+ if(!codes.length){msg('msg','Batch RPC successful hua, lekin response mein QR codes ki list nahi mili. Stock dobara add na karein; database result check karna hoga.',true);await load();return}
+ batchCodes=codes.map(c=>typeof c==='string'?c:(c.qr_code||c.code||'')).filter(Boolean);
+ $('labelArea').innerHTML='';const productName=rows.find(x=>x.id===id)?.name||'Garment';
+ batchCodes.forEach(code=>{const card=document.createElement('div');card.className='qr-label';const title=document.createElement('b');title.textContent=productName+' · '+size;const qr=document.createElement('div');const txt=document.createElement('div');txt.className='qr-code-text';txt.textContent=code;card.append(title,qr,txt);$('labelArea').append(card);if(window.QRCode)new QRCode(qr,{text:code,width:120,height:120});});
+ $('batchSummary').textContent=`${batchCodes.length} QR labels generated for ${productName}, size ${size}.`;
+ show('batchResult');$('qty').value='';$('note').value='';msg('msg','Batch successfully save ho gaya. Generated labels print kar sakte hain.');await load();
+};
+$('printLabels').onclick=()=>window.print();
+async function stageQr(code){
+ stagedQr=String(code||'').trim();$('scanInput').value=stagedQr;hide('confirmSale');stagedGarment=null;
+ if(!stagedQr){$('scanResult').textContent='QR code empty hai.';return}
+ if(cart.some(x=>x.qr_code===stagedQr)){$('scanResult').textContent='Yeh garment pehle hi current cart mein add hai.';return}
+ $('scanResult').textContent='QR code database mein check ho raha hai…';
+ const {data,error}=await db.from('garment_qr')
+   .select('id,product_id,size,qr_code,status,products(name,fabric_name,color,price)')
+   .eq('qr_code',stagedQr).maybeSingle();
+ if(error){$('scanResult').textContent='QR lookup error: '+error.message;stagedQr='';return}
+ if(!data){$('scanResult').textContent='Yeh QR Sale Central mein registered nahi hai. Add Stock se generate kiya gaya original garment QR scan karein.';stagedQr='';return}
+ const p=data.products||{};stagedGarment={...data,product_name:p.name||'Garment',fabric_name:p.fabric_name||'',color:p.color||'',price:p.price==null?null:Number(p.price)};
+ const status=data.status==='in_stock'?'In Stock':(data.status==='sold'?'Sold':'Unknown');
+ $('scanResult').innerHTML=`
+   <h2>Garment Details</h2>
+   <div class="mini-grid">
+    <div class="mini-stat"><span>Design / Product</span><b style="font-size:17px">${esc(p.name||'—')}</b></div>
+    <div class="mini-stat"><span>Fabric</span><b style="font-size:17px">${esc(p.fabric_name||'Not added')}</b></div>
+    <div class="mini-stat"><span>Size</span><b style="font-size:17px">${esc(data.size||'—')}</b></div>
+    <div class="mini-stat"><span>Price</span><b style="font-size:17px">${p.price==null?'Not added':'Rs. '+Number(p.price).toLocaleString('en-PK')}</b></div>
+    <div class="mini-stat"><span>Color</span><b style="font-size:17px">${esc(p.color||'Not added')}</b></div>
+    <div class="mini-stat"><span>Stock Status</span><b style="font-size:17px">${status}</b></div>
+   </div>
+   <div class="muted">Unique QR / Product ID: ${esc(data.qr_code)}</div>`;
+ if(data.status==='in_stock'){
+   if(p.price==null || !Number.isFinite(Number(p.price)) || Number(p.price)<0){$('scanResult').innerHTML+='<p class="notice error">Is design ki valid price set nahi. Add Stock mein design price save karein.</p>';return}
+   show('confirmSale');$('confirmSale').textContent='＋ Add to Cart';
+ }
+ else if(data.status==='sold'){$('scanResult').innerHTML+='<p class="notice error">Yeh garment pehle hi sold mark ho chuka hai. Dobara sale nahi ho sakti.</p>'}
+ else {$('scanResult').innerHTML+='<p class="notice error">Is QR ka stock status verify nahi ho saka.</p>'}
+}
+$('checkQr').onclick=()=>stageQr($('scanInput').value);
+$('scanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();stageQr($('scanInput').value)}});
+$('confirmSale').onclick=()=>{if(!stagedGarment||!stagedQr)return;if(cart.some(x=>x.qr_code===stagedQr)){msg('scanResult','Yeh garment cart mein pehle se hai.',true);return}cart.push(stagedGarment);renderCart();stagedQr='';stagedGarment=null;$('scanInput').value='';hide('confirmSale');$('scanResult').textContent='Garment cart mein add ho gaya. Agla QR scan karein ya Billing tab mein checkout karein.'};
+function money(n){return 'Rs. '+Number(n||0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function billingMessage(t,bad=false){const el=$('billingMsg');el.textContent=t;el.className='notice '+(bad?'error':'success')}
+async function issueExchangeCredit(){
+ const code=$('exchangeQr').value.trim();if(!code){$('exchangeMsg').textContent='Returned QR code enter karein.';$('exchangeMsg').className='notice error';show('exchangeMsg');return}
+ const btn=$('exchangeIssue');btn.disabled=true;$('exchangeMsg').textContent='QR, original invoice aur exchange period verify ho rahe hain…';$('exchangeMsg').className='notice';show('exchangeMsg');hide('exchangeResult');
+ try{
+  const {data,error}=await db.rpc('issue_exchange_credit',{p_returned_qr_code:code,p_reason:$('exchangeReason').value.trim()||null});
+  if(error)throw error;
+  const result=data||{};
+  $('exchangeResult').innerHTML=`<h2>Credit Voucher Issued</h2><p>Original invoice: <b>${esc(result.original_invoice_number||'')}</b></p><p>Returned QR: <b>${esc(result.returned_qr_code||code)}</b></p><p>Credit amount: <b>${money(result.credit_amount)}</b></p><p>Voucher Code: <b style="font-size:20px;letter-spacing:1px">${esc(result.voucher_code||'')}</b></p><p class="muted">Expiry: ${result.expires_at?new Date(result.expires_at).toLocaleString():'—'}</p><button type="button" class="secondary" id="copyVoucherCode">Copy Voucher Code</button>`;
+  show('exchangeResult');$('exchangeMsg').textContent='Exchange approved. Returned garment stock restored and credit voucher created.';$('exchangeMsg').className='notice success';
+  $('copyVoucherCode').onclick=()=>{if(navigator.clipboard&&result.voucher_code)navigator.clipboard.writeText(result.voucher_code).then(()=>{$('exchangeMsg').textContent='Voucher code copied.'}).catch(()=>{$('exchangeMsg').textContent='Code select karke copy karein: '+result.voucher_code});};
+  $('exchangeQr').value='';$('exchangeReason').value='';await load();
+ }catch(err){$('exchangeMsg').textContent='Exchange fail: '+(err.message||String(err));$('exchangeMsg').className='notice error';}
+ btn.disabled=false;
+}
+function renderCart(){
+ $('cartCount').textContent=cart.length;
+ const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
+ $('cartTotal').textContent=money(total);$('checkoutTotal').textContent=money(total);
+ $('cartRows').innerHTML=cart.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.price)}</td><td><button class="secondary" data-remove-qr="${esc(x.qr_code)}" type="button">Remove</button></td></tr>`).join('')||'<tr><td colspan="5">Cart is empty. QR Scanner se garment add karein.</td></tr>';
+ $('cartRows').querySelectorAll('[data-remove-qr]').forEach(b=>b.onclick=()=>{cart=cart.filter(x=>x.qr_code!==b.dataset.removeQr);renderCart()});
+}
+function addPaymentRow(method='cash',amount=''){
+ const row=document.createElement('div');row.className='payment-row';
+ const methodWrap=document.createElement('div');const methodLabel=document.createElement('label');methodLabel.textContent='Payment Method';const select=document.createElement('select');select.className='pay-method';[['cash','Cash'],['card','Card'],['online','Online']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=method;methodWrap.append(methodLabel,select);
+ const amountWrap=document.createElement('div');const amountLabel=document.createElement('label');amountLabel.textContent='Amount (Rs.)';const input=document.createElement('input');input.className='pay-amount';input.type='number';input.min='0';input.step='0.01';input.placeholder='e.g. 1000';input.value=amount;amountWrap.append(amountLabel,input);
+ const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Remove';remove.onclick=()=>{row.remove()};row.append(methodWrap,amountWrap,remove);$('paymentRows').append(row);
+}
+$('addPayment').onclick=()=>addPaymentRow('cash','');
+$('clearCart').onclick=()=>{cart=[];renderCart();$('billVoucherCode').value='';billingMessage('Cart clear kar diya gaya.');};
+function renderInvoice(inv,items,payments){
+ const rowsHtml=items.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.unit_price??x.price)}</td></tr>`).join('');
+ const payHtml=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'').toUpperCase())}</td><td>${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td>Unpaid</td></tr>';
+ const status=inv.payment_status||'unpaid';
+ const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2>Sale Central</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date().toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with Sale Central!</p><p style="text-align:center;font-size:11px;margin-top:12px;color:#667085"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
+ $('invoicePreview').innerHTML=html;
+ $('downloadInvoicePdf').onclick=()=>downloadInvoicePdf(inv,items,payments);
+ $('printInvoice').onclick=()=>printInvoice(inv,items,payments);
+ lastInvoice={inv,items,payments};
+}
+function downloadInvoicePdf(inv,items,payments){
+ const JsPDF=window.jspdf&&window.jspdf.jsPDF;
+ if(!JsPDF){billingMessage('PDF library load nahi hui. Print Invoice par click karke printer mein Save as PDF select karein.',true);return}
+ const doc=new JsPDF({unit:'mm',format:'a4'});let y=18;
+ const line=(txt,size=10,bold=false)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);const lines=doc.splitTextToSize(String(txt),180);if(y+lines.length*6>280){doc.addPage();y=18}doc.text(lines,15,y);y+=lines.length*6};
+ line('SALE CENTRAL',20,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
+ items.forEach((x,i)=>line(`${i+1}. ${x.product_name} | Size ${x.size} | QR ${x.qr_code} | ${money(x.unit_price??x.price)}`));
+ y+=4;line('PAYMENTS',12,true);if(payments.length)payments.forEach(x=>line(`${String(x.method||x.payment_method||'').toUpperCase()}: ${money(x.amount)}`));else line('No payment received');
+ y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with Sale Central!');y+=5;line('EXCHANGE POLICY: Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.',9,false);
+ doc.save((inv.invoice_number||'Sale Central-Invoice')+'.pdf');
+}
+function printInvoice(inv,items,payments){
+ const card=$('invoiceCard');if(!card)return;
+ const w=window.open('','_blank','width=850,height=700');if(!w){billingMessage('Popup block ho gaya. Browser mein popups allow karein.',true);return}
+ w.document.write(`<!doctype html><html><head><title>${esc(inv.invoice_number)}</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:Arial,sans-serif;color:#17233d;padding:24px}table{width:100%;border-collapse:collapse;margin:12px 0}td,th{text-align:left;padding:9px;border-bottom:1px solid #ddd;font-size:12px}.invoice-head{display:flex;justify-content:space-between;border-bottom:2px solid #1e3d70;padding-bottom:12px}.mini-grid{display:flex;gap:30px;margin:16px 0}.muted{color:#667085;font-size:12px}.status-pill{font-weight:bold}.cart-total{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #ddd;font-weight:bold}.invoice-total{font-size:20px}</style></head><body>${card.outerHTML}<script>window.onload=()=>{window.print()}<\/script></body></html>`);w.document.close();
+}
+async function loadInvoices(){
+ const r=await db.from('invoices').select('id,invoice_number,customer_name,customer_phone,total_amount,paid_amount,balance_due,payment_status,created_at').order('created_at',{ascending:false}).limit(100);
+ if(r.error){$('invoiceRows').innerHTML=`<tr><td colspan="7">${esc(r.error.message)}</td></tr>`;return}
+ const list=r.data||[];$('invoiceRows').innerHTML=list.map(x=>`<tr><td><b>${esc(x.invoice_number)}</b></td><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.customer_name||'Walk-in')}</td><td>${money(x.total_amount)}</td><td>${money(x.paid_amount)}</td><td>${money(x.balance_due)}</td><td><span class="status-pill ${esc(x.payment_status)}">${esc(x.payment_status)}</span></td></tr>`).join('')||'<tr><td colspan="7">No invoices yet.</td></tr>';
+}
+$('checkout').onclick=async()=>{
+ if(!cart.length){billingMessage('Checkout se pehle QR Scanner se garments cart mein add karein.',true);return}
+ const total=cart.reduce((a,x)=>a+Number(x.price||0),0);if(cart.some(x=>x.price==null||!Number.isFinite(Number(x.price)))){billingMessage('Cart mein kisi design ki price missing hai.',true);return}
+ const voucherCode=$('billVoucherCode').value.trim();let voucherBalance=0,creditUsed=0;
+ if(voucherCode){
+  const {data:v,error:ve}=await db.from('store_credit_vouchers').select('remaining_amount,status,expires_at').eq('voucher_code',voucherCode).maybeSingle();
+  if(ve){billingMessage('Voucher verify nahi ho saka: '+ve.message,true);return}
+  if(!v){billingMessage('Voucher code nahi mila.',true);return}
+  if(v.status!=='active'){billingMessage('Voucher active nahi hai.',true);return}
+  if(v.expires_at&&new Date(v.expires_at)<=new Date()){billingMessage('Voucher expire ho chuka hai.',true);return}
+  voucherBalance=Number(v.remaining_amount||0);if(voucherBalance<=0){billingMessage('Voucher mein remaining credit nahi.',true);return}
+  creditUsed=Math.min(total,voucherBalance);
+ }
+ const payments=[];for(const row of $('paymentRows').querySelectorAll('.payment-row')){const method=row.querySelector('.pay-method').value;const raw=row.querySelector('.pay-amount').value.trim();if(raw==='')continue;const amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){billingMessage('Payment amount zero se zyada hona chahiye.',true);return}payments.push({method,amount:Number(amount.toFixed(2))})}
+ const paid=payments.reduce((a,x)=>a+x.amount,0);if(paid+creditUsed>total+0.001){billingMessage('Cash/card/online + voucher credit invoice total se zyada nahi ho sakta.',true);return}
+ $('checkout').disabled=true;billingMessage('Invoice save ho raha hai aur stock/voucher update ho raha hai…');
+ const basePayload={p_qr_codes:cart.map(x=>x.qr_code),p_customer_name:$('customerName').value.trim()||null,p_customer_phone:$('customerPhone').value.trim()||null,p_payments:payments};
+ const payload=voucherCode?{...basePayload,p_voucher_code:voucherCode}:basePayload;
+ const {data,error}=await db.rpc(voucherCode?'complete_sale_with_store_credit':'complete_stitchmaster_invoice',payload);
+ $('checkout').disabled=false;
+ if(error){billingMessage('Sale complete nahi hui: '+error.message,true);return}
+ const inv={...data,customer_name:payload.p_customer_name,customer_phone:payload.p_customer_phone};
+ const items=cart.map(x=>({product_name:x.product_name,size:x.size,qr_code:x.qr_code,unit_price:Number(x.price),line_total:Number(x.price)}));
+ const displayPayments=payments.slice();if(data.voucher_credit_used>0)displayPayments.unshift({method:'store credit voucher',amount:data.voucher_credit_used});
+ renderInvoice(inv,items,displayPayments);cart=[];renderCart();$('customerName').value='';$('customerPhone').value='';$('billVoucherCode').value='';$('paymentRows').innerHTML='';addPaymentRow('cash','');billingMessage('Invoice successfully create ho gaya. Stock deduct aur voucher update ho gaya.');await load();await loadInvoices();
+};
+addPaymentRow('cash','');renderCart();
 
-    IF p_qr_codes IS NULL OR cardinality(p_qr_codes) < 1 THEN
-        RAISE EXCEPTION 'At least one garment QR is required';
-    END IF;
-    IF EXISTS (SELECT 1 FROM unnest(p_qr_codes) q(code) WHERE q.code IS NULL OR trim(q.code) = '') THEN
-        RAISE EXCEPTION 'Invalid QR code in cart';
-    END IF;
-    IF cardinality(p_qr_codes) <> (SELECT COUNT(DISTINCT q.code) FROM unnest(p_qr_codes) q(code)) THEN
-        RAISE EXCEPTION 'Duplicate QR codes in cart';
-    END IF;
-    IF p_payments IS NULL OR jsonb_typeof(p_payments) <> 'array' THEN
-        RAISE EXCEPTION 'Payments must be a JSON array';
-    END IF;
-
-    -- Lock and validate selected QR garments.
-    FOR v_item IN
-        SELECT g.id, g.product_id, g.size, g.qr_code, g.status,
-               p.name AS product_name, p.price
-        FROM public.garment_qr g
-        JOIN public.products p ON p.id = g.product_id
-        WHERE g.qr_code = ANY(p_qr_codes) AND p.user_id = v_user_id
-        ORDER BY g.id
-        FOR UPDATE OF g
-    LOOP
-        IF v_item.status <> 'in_stock' THEN
-            RAISE EXCEPTION 'Garment QR % is not in stock', v_item.qr_code;
-        END IF;
-        IF v_item.price IS NULL OR v_item.price < 0 THEN
-            RAISE EXCEPTION 'Price missing or invalid for design %', v_item.product_name;
-        END IF;
-        v_total := v_total + round(v_item.price, 2);
-        v_count := v_count + 1;
-    END LOOP;
-    IF v_count <> cardinality(p_qr_codes) THEN
-        RAISE EXCEPTION 'One or more QR codes are invalid or not owned by your account';
-    END IF;
-    v_total := round(v_total, 2);
-
-    -- Lock product rows consistently before stock changes.
-    PERFORM p.id
-    FROM public.products p
-    WHERE p.user_id = v_user_id
-      AND p.id IN (SELECT g.product_id FROM public.garment_qr g WHERE g.qr_code = ANY(p_qr_codes))
-    ORDER BY p.id
-    FOR UPDATE;
-
-
-    -- If voucher supplied, lock it and verify owner/status/expiry.
-    IF NULLIF(trim(COALESCE(p_voucher_code, '')), '') IS NOT NULL THEN
-        SELECT id, remaining_amount, status, expires_at, voucher_code
-          INTO v_voucher_id, v_voucher_balance, v_voucher_status, v_voucher_expires, v_voucher_code
-        FROM public.store_credit_vouchers
-        WHERE user_id = v_user_id AND upper(voucher_code) = upper(trim(p_voucher_code))
-        FOR UPDATE;
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'Voucher not found';
-        END IF;
-        IF v_voucher_status <> 'active' THEN
-            RAISE EXCEPTION 'Voucher is not active';
-        END IF;
-        IF v_voucher_expires IS NOT NULL AND v_voucher_expires <= now() THEN
-            RAISE EXCEPTION 'Voucher has expired';
-        END IF;
-        IF v_voucher_balance IS NULL OR v_voucher_balance <= 0 THEN
-            RAISE EXCEPTION 'Voucher has no remaining balance';
-        END IF;
-        v_credit_used := least(v_total, round(v_voucher_balance, 2));
-    END IF;
-
-    -- Validate real tender payments. Voucher credit counts toward paid total, but is not a tender row.
-    FOR v_payment IN SELECT value FROM jsonb_array_elements(p_payments)
-    LOOP
-        IF lower(trim(coalesce(v_payment.value->>'method', ''))) NOT IN ('cash', 'card', 'online') THEN
-            RAISE EXCEPTION 'Payment method must be cash, card or online';
-        END IF;
-        IF coalesce(v_payment.value->>'amount', '') !~ '^[0-9]+(\.[0-9]{1,2})?$' THEN
-            RAISE EXCEPTION 'Invalid payment amount';
-        END IF;
-        IF (v_payment.value->>'amount')::numeric <= 0 THEN
-            RAISE EXCEPTION 'Payment amount must be greater than zero';
-        END IF;
-        v_actual_paid := v_actual_paid + (v_payment.value->>'amount')::numeric;
-    END LOOP;
-    v_actual_paid := round(v_actual_paid, 2);
-    IF v_actual_paid + v_credit_used > v_total THEN
-        RAISE EXCEPTION 'Cash/card/online payments plus voucher cannot exceed invoice total';
-    END IF;
-    v_paid_total := round(v_actual_paid + v_credit_used, 2);
-
-    IF v_paid_total = 0 THEN v_status := 'unpaid';
-    ELSIF v_paid_total < v_total THEN v_status := 'partial';
-    ELSE v_status := 'paid'; END IF;
-
-    v_invoice_id := gen_random_uuid();
-    v_invoice_number := 'SC-' || to_char(now(), 'YYYYMMDD') || '-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
-    INSERT INTO public.invoices (id, user_id, invoice_number, customer_name, customer_phone, subtotal, total_amount, paid_amount, balance_due, payment_status)
-    VALUES (v_invoice_id, v_user_id, v_invoice_number,
-            nullif(trim(coalesce(p_customer_name, '')), ''),
-            nullif(trim(coalesce(p_customer_phone, '')), ''),
-            v_total, v_total, v_paid_total, v_total - v_paid_total, v_status);
-
-    -- Actual payment methods only (voucher has its own redemption ledger).
-    FOR v_payment IN SELECT value FROM jsonb_array_elements(p_payments)
-    LOOP
-        INSERT INTO public.invoice_payments (invoice_id, payment_method, amount)
-        VALUES (v_invoice_id, lower(trim(v_payment.value->>'method')), (v_payment.value->>'amount')::numeric);
-    END LOOP;
-
-    -- Stock deduction, sold QR state, invoice lines, and movement log.
-    FOR v_item IN
-        SELECT g.id, g.product_id, g.size, g.qr_code, p.name AS product_name, p.price
-        FROM public.garment_qr g
-        JOIN public.products p ON p.id = g.product_id
-        WHERE g.qr_code = ANY(p_qr_codes) AND p.user_id = v_user_id
-        ORDER BY g.id
-    LOOP
-        UPDATE public.product_sizes SET quantity = quantity - 1, updated_at = now()
-        WHERE product_id = v_item.product_id AND size = v_item.size AND quantity > 0;
-        IF NOT FOUND THEN RAISE EXCEPTION 'Insufficient stock for size % of %', v_item.size, v_item.product_name; END IF;
-
-        UPDATE public.products SET quantity = quantity - 1, updated_at = now()
-        WHERE id = v_item.product_id AND user_id = v_user_id AND quantity > 0;
-        IF NOT FOUND THEN RAISE EXCEPTION 'Insufficient total stock for %', v_item.product_name; END IF;
-
-        UPDATE public.garment_qr SET status = 'sold', sold_at = now()
-        WHERE id = v_item.id AND status = 'in_stock';
-        IF NOT FOUND THEN RAISE EXCEPTION 'QR sale could not be completed'; END IF;
-
-        INSERT INTO public.invoice_items (invoice_id, product_id, product_name, size, qr_code, unit_price, line_total)
-        VALUES (v_invoice_id, v_item.product_id, v_item.product_name, v_item.size, v_item.qr_code, round(v_item.price, 2), round(v_item.price, 2));
-
-        INSERT INTO public.stock_movements (product_id, user_id, movement_type, quantity, note)
-        VALUES (v_item.product_id, v_user_id, 'OUT', 1, 'Invoice ' || v_invoice_number || ' - QR sale - Size ' || v_item.size);
-    END LOOP;
-
-
-    -- Voucher debit and redemption ledger, within the same transaction.
-    IF v_credit_used > 0 THEN
-        v_remaining_credit := round(v_voucher_balance - v_credit_used, 2);
-        UPDATE public.store_credit_vouchers
-        SET remaining_amount = v_remaining_credit,
-            status = CASE WHEN v_remaining_credit <= 0 THEN 'used' ELSE status END
-        WHERE id = v_voucher_id AND user_id = v_user_id;
-        IF NOT FOUND THEN RAISE EXCEPTION 'Voucher balance update failed'; END IF;
-
-        INSERT INTO public.store_credit_redemptions (user_id, voucher_id, invoice_id, amount_used)
-        VALUES (v_user_id, v_voucher_id, v_invoice_id, v_credit_used);
-
-        -- Link the redemption invoice to the exchange-credit record when one exists.
-        INSERT INTO public.exchange_history (user_id, exchange_credit_id, replacement_invoice_id, note)
-        SELECT v_user_id, ec.id, v_invoice_id, 'Voucher redeemed: ' || v_voucher_code
-        FROM public.exchange_credits ec
-        WHERE ec.user_id = v_user_id AND ec.voucher_id = v_voucher_id;
-    ELSE
-        v_remaining_credit := v_voucher_balance;
-    END IF;
-
-
-    RETURN jsonb_build_object(
-        'success', true,
-        'invoice_id', v_invoice_id,
-        'invoice_number', v_invoice_number,
-        'items_count', v_count,
-        'total_amount', v_total,
-        'voucher_code', v_voucher_code,
-        'voucher_credit_used', v_credit_used,
-        'voucher_remaining', v_remaining_credit,
-        'paid_amount', v_paid_total,
-        'actual_payment_amount', v_actual_paid,
-        'balance_due', round(v_total - v_paid_total, 2),
-        'payment_status', v_status
-    );
-END;
-$function$;
-
-
--- Restrict execution to authenticated users. (RPC is intended to be called by signed-in POS users.)
-REVOKE ALL ON FUNCTION public.complete_sale_with_store_credit(text[], text, text, jsonb, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.complete_sale_with_store_credit(text[], text, text, jsonb, text) TO authenticated;
+function cameraErrorText(err){
+  if(err && typeof err==='object'){
+    const parts=[err.name,err.message,err.constraint].filter(Boolean);
+    if(parts.length)return parts.join(': ');
+    try{return JSON.stringify(err)}catch(_){return String(err)}
+  }
+  return (typeof err==='string' && err.trim()) ? err : 'Unknown camera error (browser ne detail provide nahi ki).';
+}
+$('startCamera').onclick=async()=>{
+  const btn=$('startCamera');
+  btn.disabled=true;
+  msg('scanResult','Camera scanner load ho raha hai…');
+  try{
+    if(!window.isSecureContext){throw new Error('Website secure HTTPS context mein open nahi hai. Chrome mein https:// wala address use karein.')}
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){throw new Error('Is browser mein camera API available nahi. Chrome mein website open karein.')}
+    const libraryLoaded=window.__stitchQrLibraryReady ? await window.__stitchQrLibraryReady : !!window.Html5Qrcode;
+    if(!libraryLoaded || !window.Html5Qrcode){throw new Error('QR scanner library load nahi hui. Internet connection check karke page refresh karein.')}
+    if(scanner && scanner.isScanning){await scanner.stop();}
+    if(!scanner) scanner=new Html5Qrcode('reader',{verbose:false});
+    let cameraConfig={facingMode:'environment'};
+    try{
+      const cameras=await Html5Qrcode.getCameras();
+      if(cameras && cameras.length){
+        const rear=cameras.find(c=>/back|rear|environment|facing back/i.test(c.label||''));
+        cameraConfig={deviceId:{exact:(rear||cameras[0]).id}};
+      }
+    }catch(cameraListError){ /* Browser may hide camera labels until permission is granted. */ }
+    await scanner.start(cameraConfig,{fps:10,qrbox:{width:230,height:230}},decoded=>{
+      stageQr(decoded);
+      if(scanner && scanner.isScanning) scanner.stop().catch(stopError=>console.warn('QR scanner stop:',stopError));
+    });
+    msg('scanResult','Camera scanner active hai. QR code camera ke samne rakhein.');
+  }catch(e){
+    console.error('Sale Central camera start error:',e);
+    msg('scanResult','Camera start nahi hua: '+cameraErrorText(e),true);
+  }finally{btn.disabled=false;}
+};
+$('stopCamera').onclick=async()=>{
+  try{
+    if(scanner && scanner.isScanning){await scanner.stop();}
+    msg('scanResult','Camera stopped.');
+  }catch(e){console.error('Sale Central camera stop error:',e);msg('scanResult','Camera stop nahi hua: '+cameraErrorText(e),true)}
+};
+$('csv').onclick=()=>{const lines=[['Date','Product','Type','Quantity','Note'],...movements.map(x=>[new Date(x.created_at).toLocaleString(),x.products?.name||'',x.movement_type,x.quantity,x.note||''])];const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='sale-central-history.csv';a.click();URL.revokeObjectURL(a.href)};
+start();
+</script></body></html>
