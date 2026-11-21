@@ -100,10 +100,16 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <div class="tablewrap"><table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody id="invoiceRows"><tr><td colspan="7">Loading invoices…</td></tr></tbody></table></div>
   </section>
   <section id="billing" class="panel hidden">
-    <div class="section-head"><div><h2>Billing & Checkout</h2><span class="muted">Scan garments in QR Scanner, add them to cart, then checkout</span></div><button id="billingRefresh" class="secondary">↻ Refresh invoices</button></div>
+    <div class="section-head"><div><h2>Billing & Checkout</h2><span class="muted">Scan each garment QR here. Products will be added to the cart automatically.</span></div><button id="billingRefresh" class="secondary">↻ Refresh invoices</button></div>
+    <div class="panel" style="margin:14px 0;padding:16px;background:#f7faff;border:1px solid #d8e5fa;box-shadow:none">
+      <h2 style="margin-bottom:6px">⚡ Quick QR Billing</h2>
+      <label for="billingScanInput">USB QR Scanner</label>
+      <input id="billingScanInput" type="text" autocomplete="off" placeholder="Scan garment QR code here" inputmode="none">
+      <div id="billingScanMsg" class="notice" aria-live="polite">Scanner ready. Scan a garment QR code to add it to the cart.</div>
+    </div>
     <div class="mini-grid"><div class="mini-stat"><span>Cart pieces</span><b id="cartCount">0</b></div><div class="mini-stat"><span>Cart total</span><b id="cartTotal">Rs. 0</b></div></div>
     <h2>Current Cart</h2>
-    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR</th><th>Price</th><th></th></tr></thead><tbody id="cartRows"><tr><td colspan="5">Cart is empty. Scan a QR code to add garments.</td></tr></tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR</th><th>Price</th><th></th></tr></thead><tbody id="cartRows"><tr><td colspan="5">Cart is empty. Scan a garment QR in the Billing scanner above.</td></tr></tbody></table></div>
     <div class="cart-total"><span>Invoice Total</span><span id="checkoutTotal">Rs. 0</span></div>
     <h2 style="margin-top:22px">Customer Details <span class="muted">(optional)</span></h2>
     <div class="form-grid"><div><label>Customer Name</label><input id="customerName" maxlength="120" placeholder="Customer name (optional)"></div><div><label>Customer Phone</label><input id="customerPhone" maxlength="40" placeholder="03XX-XXXXXXX (optional)"></div></div>
@@ -194,7 +200,7 @@ $('closeAdminModal').onclick=()=>hide('adminModal');adminModal.addEventListener(
 $('myProfile').onclick=async()=>{const {data:{user}}=await db.auth.getUser();openAdminModal('My Profile',`<p><b>Account email</b></p><p class="muted">${esc(user?.email||'—')}</p><p class="muted">Sale Central account profile</p>`)};
 $('changePassword').onclick=()=>{openAdminModal('Change Password',`<label>New password</label><input id="newAdminPassword" type="password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmAdminPassword" type="password" placeholder="Re-enter new password"><div id="passwordNotice" class="notice hidden"></div><button id="saveAdminPassword" type="button" style="margin-top:12px">Update Password</button>`);$('saveAdminPassword').onclick=async()=>{const a=$('newAdminPassword').value,b=$('confirmAdminPassword').value;if(a.length<6){msg('passwordNotice','Password kam az kam 6 characters ka hona chahiye.',true);return}if(a!==b){msg('passwordNotice','Dono passwords match nahi karte.',true);return}const {error}=await db.auth.updateUser({password:a});if(error)msg('passwordNotice',error.message,true);else msg('passwordNotice','Password successfully update ho gaya.')};};
 $('settingsBtn').onclick=()=>openAdminModal('Settings',`<p><b>Brand</b></p><p class="muted">Sale Central</p><p><b>Theme</b></p><p class="muted">Navy blue &amp; blue, light dashboard</p><p class="muted">This panel is a basic account settings overview.</p>`);
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing')loadInvoices()});
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing'){loadInvoices();setTimeout(()=>$('billingScanInput').focus(),100)}});
 $('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;
 $('exchangeIssue').onclick=issueExchangeCredit;
 $('exchangeQr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();issueExchangeCredit()}});
@@ -317,9 +323,57 @@ function renderCart(){
  $('cartCount').textContent=cart.length;
  const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
  $('cartTotal').textContent=money(total);$('checkoutTotal').textContent=money(total);
- $('cartRows').innerHTML=cart.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.price)}</td><td><button class="secondary" data-remove-qr="${esc(x.qr_code)}" type="button">Remove</button></td></tr>`).join('')||'<tr><td colspan="5">Cart is empty. QR Scanner se garment add karein.</td></tr>';
+ $('cartRows').innerHTML=cart.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.price)}</td><td><button class="secondary" data-remove-qr="${esc(x.qr_code)}" type="button">Remove</button></td></tr>`).join('')||'<tr><td colspan="5">Cart is empty. Billing scanner se garment scan karein.</td></tr>';
  $('cartRows').querySelectorAll('[data-remove-qr]').forEach(b=>b.onclick=()=>{cart=cart.filter(x=>x.qr_code!==b.dataset.removeQr);renderCart()});
 }
+// Billing USB scanner: each Enter-terminated QR is looked up and added to the cart.
+let billingScanQueue=Promise.resolve();
+async function addBillingQrToCart(code){
+ code=String(code||'').trim();
+ if(!code)return;
+ const status=$('billingScanMsg');
+ if(cart.some(x=>x.qr_code===code)){
+  status.textContent='Already in cart: '+code;
+  status.className='notice error';
+  return;
+ }
+ status.textContent='Checking QR: '+code+'…';
+ status.className='notice';
+ try{
+  const {data,error}=await db.from('garment_qr')
+   .select('id,product_id,size,qr_code,status,products(name,fabric_name,color,price)')
+   .eq('qr_code',code).maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error('This QR code is not registered in Sale Central.');
+  if(data.status!=='in_stock')throw new Error('This garment is already sold or unavailable.');
+  const product=data.products||{};
+  const price=product.price==null?null:Number(product.price);
+  if(price===null||!Number.isFinite(price)||price<0)throw new Error('Product price is missing or invalid. Save the design price first.');
+  cart.push({...data,product_name:product.name||'Garment',fabric_name:product.fabric_name||'',color:product.color||'',price});
+  renderCart();
+  status.textContent='✓ '+(product.name||'Product')+' | Size '+(data.size||'—')+' | '+money(price)+' added to cart. Scan next product.';
+  status.className='notice success';
+ }catch(err){
+  status.textContent='Scan failed: '+(err.message||String(err));
+  status.className='notice error';
+ }
+}
+function queueBillingQr(code){
+ const clean=String(code||'').trim();
+ if(!clean)return;
+ billingScanQueue=billingScanQueue.then(()=>addBillingQrToCart(clean)).catch(err=>{
+  const status=$('billingScanMsg');status.textContent='Scanner error: '+(err.message||String(err));status.className='notice error';
+ });
+}
+$('billingScanInput').addEventListener('keydown',e=>{
+ if(e.key==='Enter'){
+  e.preventDefault();
+  const code=$('billingScanInput').value.trim();
+  $('billingScanInput').value='';
+  queueBillingQr(code);
+ }
+});
+
 function addPaymentRow(method='cash',amount=''){
  const row=document.createElement('div');row.className='payment-row';
  const methodWrap=document.createElement('div');const methodLabel=document.createElement('label');methodLabel.textContent='Payment Method';const select=document.createElement('select');select.className='pay-method';[['cash','Cash'],['card','Card'],['online','Online']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=method;methodWrap.append(methodLabel,select);
