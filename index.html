@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StitchMaster</title>
+<title>Sale Central</title>
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
 *{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
@@ -26,13 +26,17 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 .tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{text-align:left;padding:13px 11px;border-bottom:1px solid #edf0f5;font-size:13px;white-space:nowrap}th{color:#6c7d98;font-weight:700;background:#f7f9fd}td{color:#344563}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
-.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.label-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-top:18px}.qr-label{border:1px solid #ccd6e5;border-radius:10px;padding:12px;text-align:center;break-inside:avoid}.qr-label canvas,.qr-label img{display:block;margin:8px auto;max-width:130px}.qr-code-text{font-size:11px;overflow-wrap:anywhere;color:#344563}.scan-box{max-width:520px;margin:12px 0}.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.mini-stat{background:#f7faff;border:1px solid var(--line);border-radius:13px;padding:15px}.mini-stat span{display:block;color:var(--muted);font-size:12px;font-weight:700}.mini-stat b{display:block;color:#173665;font-size:23px;margin-top:7px}.pending{font-size:12px;color:#64748b;background:#f1f5f9;border-radius:20px;padding:5px 9px;display:inline-block}.cart-total{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-weight:700}.payment-row{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;align-items:end;margin:10px 0}.invoice-card{background:#fff;border:1px solid #dce4f0;border-radius:14px;padding:22px;margin-top:18px;color:#17233d}.invoice-head{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #1e3d70;padding-bottom:14px;margin-bottom:14px}.invoice-head h2{font-size:23px}.invoice-total{font-size:20px;font-weight:800;color:#173665}.status-pill{display:inline-block;border-radius:30px;padding:5px 10px;background:#eaf8ef;color:#176b37;font-size:12px;font-weight:800}.status-pill.partial{background:#fff6df;color:#8a5a00}.status-pill.unpaid{background:#fff0f0;color:#9d2525}@media(max-width:800px){.mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:800px){.wrap{padding:15px}.app-shell{grid-template-columns:1fr;gap:15px}.sidebar{min-height:0;position:static;padding:14px}.brand{padding:4px 7px 12px}.tabs{flex-direction:row;overflow:auto}.tabs button{white-space:nowrap;padding:11px}.sidebar-foot{display:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:15px}.stat b{font-size:26px}.panel{padding:16px}}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.label-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-top:18px}.qr-label{border:1px solid #ccd6e5;border-radius:10px;padding:12px;text-align:center;break-inside:avoid}.qr-label canvas,.qr-label img{display:block;margin:8px auto;max-width:130px}.qr-code-text{font-size:11px;overflow-wrap:anywhere;color:#344563}.scan-box{max-width:520px;margin:12px 0}.qr-hint{margin-top:18px;padding:20px;border:1px dashed #c9d8f2;border-radius:14px;background:#f7faff;color:#496184;font-size:13px}.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.mini-stat{background:#f7faff;border:1px solid var(--line);border-radius:13px;padding:15px}.mini-stat span{display:block;color:var(--muted);font-size:12px;font-weight:700}.mini-stat b{display:block;color:#173665;font-size:23px;margin-top:7px}.pending{font-size:12px;color:#64748b;background:#f1f5f9;border-radius:20px;padding:5px 9px;display:inline-block}.cart-total{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-weight:700}.payment-row{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;align-items:end;margin:10px 0}.invoice-card{background:#fff;border:1px solid #dce4f0;border-radius:14px;padding:22px;margin-top:18px;color:#17233d}.invoice-head{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #1e3d70;padding-bottom:14px;margin-bottom:14px}.invoice-head h2{font-size:23px}.invoice-total{font-size:20px;font-weight:800;color:#173665}.status-pill{display:inline-block;border-radius:30px;padding:5px 10px;background:#eaf8ef;color:#176b37;font-size:12px;font-weight:800}.status-pill.partial{background:#fff6df;color:#8a5a00}.status-pill.unpaid{background:#fff0f0;color:#9d2525}
+.brand{font-size:22px;letter-spacing:-.4px;color:#fff}.brand span{color:inherit}
+.stat:before{display:none}.stat{position:relative;padding-top:16px}.product-icon{display:inline-flex;width:30px;height:30px;border-radius:8px;background:#edf4ff;align-items:center;justify-content:center;font-size:16px;margin-right:9px;vertical-align:middle}.stat-icon{display:flex;width:48px;height:48px;border-radius:50%;background:#edf4ff;align-items:center;justify-content:center;font-size:24px;margin-bottom:13px}
+.sidebar-foot{padding:17px 8px}.foot-brand{font-weight:800;font-size:13px;letter-spacing:.3px}.foot-sub{margin:3px 0 14px;font-size:12px;color:#c5d4ed}.quick-link{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;margin:5px 0;background:#17396c;color:#eaf2ff;padding:10px 12px;border-radius:12px;font-weight:600;font-size:12px}.quick-link:hover{background:#2456a3;transform:none}.support-link{border-top:1px solid #ffffff26;margin-top:15px;padding:15px 3px 0;font-weight:700;font-size:12px}.support-link span{font-weight:400;color:#c5d4ed}.admin-wrap{position:relative}.admin-toggle{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #dce7f8}.admin-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:210px;background:white;border:1px solid var(--line);border-radius:13px;padding:8px;box-shadow:0 12px 32px #132b4a25;z-index:30}.admin-menu button{display:block;width:100%;text-align:left;background:transparent;color:#203858;padding:11px 12px;font-weight:600}.admin-menu button:hover{background:#f0f5ff;transform:none}.menu-divider{border-top:1px solid var(--line);margin:5px 0}.admin-menu .logout-menu{color:#b42332}.modal-backdrop{position:fixed;inset:0;background:#071a3a70;display:flex;align-items:center;justify-content:center;padding:18px;z-index:50}.admin-modal{width:min(440px,100%);max-height:90vh;overflow:auto}.admin-modal label{margin-top:10px}.admin-modal p{margin:8px 0}.modal-backdrop.hidden{display:none!important}
+@media(max-width:800px){.mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:800px){.wrap{padding:15px}.app-shell{grid-template-columns:1fr;gap:15px}.sidebar{min-height:0;position:static;padding:14px}.brand{padding:4px 7px 12px}.tabs{flex-direction:row;overflow:auto}.tabs button{white-space:nowrap;padding:11px}.sidebar-foot{display:block}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:15px}.stat b{font-size:26px}.panel{padding:16px}}
 @media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%}.qr-label{display:inline-block;width:180px;margin:5px}}
 @media(max-width:480px){.row,.form-grid{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbar .right{flex-direction:column;align-items:flex-end}.grid{gap:8px}.stat b{font-size:23px}}
 </style></head><body>
 <div id="auth" class="wrap auth panel">
-<h1>StitchMaster</h1><p class="muted">Sign in to your stitching unit inventory.</p>
+<h1>Sale Central</h1><p class="muted">Sign in to your inventory account.</p>
 <div id="authMsg" class="notice hidden"></div>
 <label>Email</label><input id="email" type="email" placeholder="Your email">
 <label>Password</label><input id="password" type="password" placeholder="At least 6 characters">
@@ -42,7 +46,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 <div id="app" class="wrap hidden">
 <div class="app-shell">
 <aside class="sidebar">
-  <div class="brand">Stitch<span>Master</span></div>
+  <div class="brand">Sale Central</div>
   <div class="tabs">
     <button data-tab="stock" class="active">▦ &nbsp; Dashboard</button>
     <button data-tab="entry">＋ &nbsp; Add Stock</button>
@@ -52,19 +56,24 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <button data-tab="qr">▣ &nbsp; QR Scanner</button>
     <button data-tab="history">◷ &nbsp; History</button>
   </div>
-  <div class="sidebar-foot">SMART INVENTORY<br><b>For your stitching unit</b><br><br>Size-wise stock · Sales · QR</div>
+  <div class="sidebar-foot"><div class="foot-brand">SMART INVENTORY</div><div class="foot-sub">For your stitching unit</div>
+  <button type="button" class="quick-link" data-tab="sizes">👕 &nbsp; Size-wise Stock <span>›</span></button>
+  <button type="button" class="quick-link" data-tab="sales">▥ &nbsp; Sales Reports <span>›</span></button>
+  <button type="button" class="quick-link" data-tab="qr">▦ &nbsp; QR Management <span>›</span></button>
+  <div class="support-link">♧ &nbsp; Need Help?<br><span>Contact Support</span></div></div>
 </aside>
 <main class="main">
   <header class="topbar">
     <div><h1>Dashboard</h1><span class="muted">Inventory, sizes and sales overview</span></div>
-    <div class="right"><span class="muted">Admin</span><button id="logout" class="secondary">Logout</button></div>
+    <div class="right"><div class="admin-wrap"><button id="adminToggle" class="admin-toggle secondary" type="button">👤 Admin <span>⌄</span></button>
+  <div id="adminMenu" class="admin-menu hidden"><button type="button" id="myProfile">♙ &nbsp; My Profile</button><button type="button" id="changePassword">🔒 &nbsp; Change Password</button><button type="button" id="settingsBtn">⚙ &nbsp; Settings</button><div class="menu-divider"></div><button type="button" id="logout" class="logout-menu">↪ &nbsp; Logout</button></div></div></div>
   </header>
   <div id="msg" class="notice hidden"></div>
   <div class="grid">
-    <div class="stat"><span>Total pieces in stock</span><b id="total">0</b></div>
-    <div class="stat"><span>Pieces sold</span><b id="soldTotal">0</b></div>
-    <div class="stat"><span>Stock designs</span><b id="designTotal">0</b></div>
-    <div class="stat"><span>Today sold</span><b id="todaySold">0</b></div>
+    <div class="stat"><div class="stat-icon">👕</div><span>Total pieces in stock</span><b id="total">0</b></div>
+    <div class="stat"><div class="stat-icon">📦</div><span>Pieces sold</span><b id="soldTotal">0</b></div>
+    <div class="stat"><div class="stat-icon">🏷️</div><span>Stock designs</span><b id="designTotal">0</b></div>
+    <div class="stat"><div class="stat-icon">📅</div><span>Today sold</span><b id="todaySold">0</b></div>
   </div>
   <section id="stock" class="panel">
     <div class="section-head"><div><h2>Stock Overview</h2><span class="muted">Current available quantities</span></div><button id="refresh" class="secondary">↻ Refresh</button></div>
@@ -123,6 +132,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 </main>
 </div>
 </div>
+<div id="adminModal" class="modal-backdrop hidden"><div class="admin-modal panel"><div class="section-head"><h2 id="adminModalTitle">Admin</h2><button id="closeAdminModal" class="secondary" type="button">✕</button></div><div id="adminModalBody"></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -164,6 +174,14 @@ async function showApp(){$('auth').classList.add('hidden');$('app').classList.re
 $('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')};
 $('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)};
 $('logout').onclick=()=>db.auth.signOut();
+const adminMenu=$('adminMenu'),adminToggle=$('adminToggle'),adminModal=$('adminModal');
+adminToggle.onclick=()=>adminMenu.classList.toggle('hidden');
+document.addEventListener('click',e=>{if(!e.target.closest('.admin-wrap'))adminMenu.classList.add('hidden')});
+function openAdminModal(title,body){$('adminModalTitle').textContent=title;$('adminModalBody').innerHTML=body;show('adminModal');adminMenu.classList.add('hidden')}
+$('closeAdminModal').onclick=()=>hide('adminModal');adminModal.addEventListener('click',e=>{if(e.target===adminModal)hide('adminModal')});
+$('myProfile').onclick=async()=>{const {data:{user}}=await db.auth.getUser();openAdminModal('My Profile',`<p><b>Account email</b></p><p class="muted">${esc(user?.email||'—')}</p><p class="muted">Sale Central account profile</p>`)};
+$('changePassword').onclick=()=>{openAdminModal('Change Password',`<label>New password</label><input id="newAdminPassword" type="password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmAdminPassword" type="password" placeholder="Re-enter new password"><div id="passwordNotice" class="notice hidden"></div><button id="saveAdminPassword" type="button" style="margin-top:12px">Update Password</button>`);$('saveAdminPassword').onclick=async()=>{const a=$('newAdminPassword').value,b=$('confirmAdminPassword').value;if(a.length<6){msg('passwordNotice','Password kam az kam 6 characters ka hona chahiye.',true);return}if(a!==b){msg('passwordNotice','Dono passwords match nahi karte.',true);return}const {error}=await db.auth.updateUser({password:a});if(error)msg('passwordNotice',error.message,true);else msg('passwordNotice','Password successfully update ho gaya.')};};
+$('settingsBtn').onclick=()=>openAdminModal('Settings',`<p><b>Brand</b></p><p class="muted">Sale Central</p><p><b>Theme</b></p><p class="muted">Navy blue &amp; blue, light dashboard</p><p class="muted">This panel is a basic account settings overview.</p>`);
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing')loadInvoices()});
 $('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;
 function fillDesignFields(){
@@ -199,7 +217,7 @@ async function load(){
  $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
  fillDesignFields();
  $('total').textContent=rows.reduce((a,x)=>a+Number(x.quantity||0),0);$('designTotal').textContent=rows.length;
- $('stockRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.name)}</td><td><b>${Number(x.quantity||0)}</b></td><td>${x.updated_at?new Date(x.updated_at).toLocaleString():'—'}</td></tr>`).join('')||'<tr><td colspan="3">No products found.</td></tr>';
+ $('stockRows').innerHTML=rows.map(x=>`<tr><td><span class="product-icon">👕</span>${esc(x.name)}</td><td><b>${Number(x.quantity||0)}</b></td><td>${x.updated_at?new Date(x.updated_at).toLocaleString():'—'}</td></tr>`).join('')||'<tr><td colspan="3">No products found.</td></tr>';
  const h=await db.from('stock_movements').select('movement_type,quantity,note,created_at,products(name)').order('created_at',{ascending:false}).limit(500);
  if(h.error){msg('msg',h.error.message,true);return}movements=h.data||[];
  $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':'Sale Out'}</td><td>${x.quantity}</td><td>${esc(x.note||'')}</td></tr>`).join('')||'<tr><td colspan="5">No history yet.</td></tr>';
@@ -240,7 +258,7 @@ async function stageQr(code){
    .select('id,product_id,size,qr_code,status,products(name,fabric_name,color,price)')
    .eq('qr_code',stagedQr).maybeSingle();
  if(error){$('scanResult').textContent='QR lookup error: '+error.message;stagedQr='';return}
- if(!data){$('scanResult').textContent='Yeh QR StitchMaster mein registered nahi hai. Add Stock se generate kiya gaya original garment QR scan karein.';stagedQr='';return}
+ if(!data){$('scanResult').textContent='Yeh QR Sale Central mein registered nahi hai. Add Stock se generate kiya gaya original garment QR scan karein.';stagedQr='';return}
  const p=data.products||{};stagedGarment={...data,product_name:p.name||'Garment',fabric_name:p.fabric_name||'',color:p.color||'',price:p.price==null?null:Number(p.price)};
  const status=data.status==='in_stock'?'In Stock':(data.status==='sold'?'Sold':'Unknown');
  $('scanResult').innerHTML=`
@@ -285,7 +303,7 @@ function renderInvoice(inv,items,payments){
  const rowsHtml=items.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.unit_price??x.price)}</td></tr>`).join('');
  const payHtml=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'').toUpperCase())}</td><td>${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td>Unpaid</td></tr>';
  const status=inv.payment_status||'unpaid';
- const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2>StitchMaster</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date().toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with StitchMaster!</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
+ const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2>Sale Central</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date().toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with Sale Central!</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
  $('invoicePreview').innerHTML=html;
  $('downloadInvoicePdf').onclick=()=>downloadInvoicePdf(inv,items,payments);
  $('printInvoice').onclick=()=>printInvoice(inv,items,payments);
@@ -296,11 +314,11 @@ function downloadInvoicePdf(inv,items,payments){
  if(!JsPDF){billingMessage('PDF library load nahi hui. Print Invoice par click karke printer mein Save as PDF select karein.',true);return}
  const doc=new JsPDF({unit:'mm',format:'a4'});let y=18;
  const line=(txt,size=10,bold=false)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);const lines=doc.splitTextToSize(String(txt),180);if(y+lines.length*6>280){doc.addPage();y=18}doc.text(lines,15,y);y+=lines.length*6};
- line('STITCHMASTER',20,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
+ line('SALE CENTRAL',20,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
  items.forEach((x,i)=>line(`${i+1}. ${x.product_name} | Size ${x.size} | QR ${x.qr_code} | ${money(x.unit_price??x.price)}`));
  y+=4;line('PAYMENTS',12,true);if(payments.length)payments.forEach(x=>line(`${String(x.method||x.payment_method||'').toUpperCase()}: ${money(x.amount)}`));else line('No payment received');
- y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with StitchMaster!');
- doc.save((inv.invoice_number||'StitchMaster-Invoice')+'.pdf');
+ y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with Sale Central!');
+ doc.save((inv.invoice_number||'Sale Central-Invoice')+'.pdf');
 }
 function printInvoice(inv,items,payments){
  const card=$('invoiceCard');if(!card)return;
@@ -361,7 +379,7 @@ $('startCamera').onclick=async()=>{
     });
     msg('scanResult','Camera scanner active hai. QR code camera ke samne rakhein.');
   }catch(e){
-    console.error('StitchMaster camera start error:',e);
+    console.error('Sale Central camera start error:',e);
     msg('scanResult','Camera start nahi hua: '+cameraErrorText(e),true);
   }finally{btn.disabled=false;}
 };
@@ -369,8 +387,8 @@ $('stopCamera').onclick=async()=>{
   try{
     if(scanner && scanner.isScanning){await scanner.stop();}
     msg('scanResult','Camera stopped.');
-  }catch(e){console.error('StitchMaster camera stop error:',e);msg('scanResult','Camera stop nahi hua: '+cameraErrorText(e),true)}
+  }catch(e){console.error('Sale Central camera stop error:',e);msg('scanResult','Camera stop nahi hua: '+cameraErrorText(e),true)}
 };
-$('csv').onclick=()=>{const lines=[['Date','Product','Type','Quantity','Note'],...movements.map(x=>[new Date(x.created_at).toLocaleString(),x.products?.name||'',x.movement_type,x.quantity,x.note||''])];const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='stitchmaster-history.csv';a.click();URL.revokeObjectURL(a.href)};
+$('csv').onclick=()=>{const lines=[['Date','Product','Type','Quantity','Note'],...movements.map(x=>[new Date(x.created_at).toLocaleString(),x.products?.name||'',x.movement_type,x.quantity,x.note||''])];const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='sale-central-history.csv';a.click();URL.revokeObjectURL(a.href)};
 start();
 </script></body></html>
