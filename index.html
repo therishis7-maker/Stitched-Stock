@@ -54,13 +54,11 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <button data-tab="billing">▤ &nbsp; Billing</button>
     <button data-tab="exchange">↺ &nbsp; Exchange / Credit</button>
     <button data-tab="sizes">↔ &nbsp; Size-wise Stock</button>
-    <button data-tab="qr">▣ &nbsp; QR Scanner</button>
     <button data-tab="history">◷ &nbsp; History</button>
   </div>
   <div class="sidebar-foot"><div class="foot-brand">SMART INVENTORY</div><div class="foot-sub">For your stitching unit</div>
   <button type="button" class="quick-link" data-tab="sizes">👕 &nbsp; Size-wise Stock <span>›</span></button>
   <button type="button" class="quick-link" data-tab="sales">▥ &nbsp; Sales Reports <span>›</span></button>
-  <button type="button" class="quick-link" data-tab="qr">▦ &nbsp; QR Management <span>›</span></button>
   <div class="support-link">♧ &nbsp; Need Help?<br><span>Contact Support</span></div></div>
 </aside>
 <main class="main">
@@ -100,16 +98,11 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <div class="tablewrap"><table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody id="invoiceRows"><tr><td colspan="7">Loading invoices…</td></tr></tbody></table></div>
   </section>
   <section id="billing" class="panel hidden">
-    <div class="section-head"><div><h2>Billing & Checkout</h2><span class="muted">Scan each garment QR here. Products will be added to the cart automatically.</span></div><button id="billingRefresh" class="secondary">↻ Refresh invoices</button></div>
-    <div class="panel" style="margin:14px 0;padding:16px;background:#f7faff;border:1px solid #d8e5fa;box-shadow:none">
-      <h2 style="margin-bottom:6px">⚡ Quick QR Billing</h2>
-      <label for="billingScanInput">USB QR Scanner</label>
-      <input id="billingScanInput" type="text" autocomplete="off" placeholder="Scan garment QR code here" inputmode="none">
-      <div id="billingScanMsg" class="notice" aria-live="polite">Scanner ready. Scan a garment QR code to add it to the cart.</div>
-    </div>
+    <div class="section-head"><div><h2>Billing & Checkout</h2><span class="muted">ZANIS Billing — scanner automatically ready; scan garments and create invoice here</span></div><button id="billingRefresh" class="secondary">↻ Refresh invoices</button></div>
+    <div class="scan-box" style="margin:14px 0"><label for="billingScanInput">⚡ Quick QR Billing — USB Scanner</label><div class="row"><input id="billingScanInput" autocomplete="off" placeholder="Scanner ready — scan product QR codes"><button id="billingScanButton" type="button">Add Product</button></div><div id="billingScanMsg" class="notice">Scanner automatically ready. Scan a garment QR directly.</div></div>
     <div class="mini-grid"><div class="mini-stat"><span>Cart pieces</span><b id="cartCount">0</b></div><div class="mini-stat"><span>Cart total</span><b id="cartTotal">Rs. 0</b></div></div>
     <h2>Current Cart</h2>
-    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR</th><th>Price</th><th></th></tr></thead><tbody id="cartRows"><tr><td colspan="5">Cart is empty. Scan a garment QR in the Billing scanner above.</td></tr></tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR</th><th>Price</th><th></th></tr></thead><tbody id="cartRows"><tr><td colspan="5">Cart is empty. Scan a QR code to add garments.</td></tr></tbody></table></div>
     <div class="cart-total"><span>Invoice Total</span><span id="checkoutTotal">Rs. 0</span></div>
     <h2 style="margin-top:22px">Customer Details <span class="muted">(optional)</span></h2>
     <div class="form-grid"><div><label>Customer Name</label><input id="customerName" maxlength="120" placeholder="Customer name (optional)"></div><div><label>Customer Phone</label><input id="customerPhone" maxlength="40" placeholder="03XX-XXXXXXX (optional)"></div></div>
@@ -134,7 +127,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <div class="section-head"><div><h2>Size-wise Stock</h2><span class="muted">Live available quantity by product and size</span></div><button id="sizesRefresh" class="secondary">↻ Refresh</button></div>
     <div class="tablewrap"><table><thead><tr><th>Product / Design</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>XXL</th><th>Total</th></tr></thead><tbody id="sizeRows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
   </section>
-  <section id="qr" class="panel hidden">
+  <section id="qr" class="panel hidden" aria-hidden="true" style="display:none!important">
     <div class="section-head"><div><h2>QR Scanner & Sale Confirmation</h2><span class="muted">Scan one garment QR, then confirm its sale</span></div></div>
     <div class="scan-box"><label>Camera scanner</label><div id="reader" style="width:100%;max-width:480px"></div><div class="actions" style="margin-top:10px"><button id="startCamera">Start Camera</button><button id="stopCamera" class="secondary">Stop Camera</button></div></div>
     <label>Or enter QR code manually / USB scanner</label><div class="row"><input id="scanInput" placeholder="Scan or paste QR code"><button id="checkQr">Check QR</button></div>
@@ -200,7 +193,8 @@ $('closeAdminModal').onclick=()=>hide('adminModal');adminModal.addEventListener(
 $('myProfile').onclick=async()=>{const {data:{user}}=await db.auth.getUser();openAdminModal('My Profile',`<p><b>Account email</b></p><p class="muted">${esc(user?.email||'—')}</p><p class="muted">Sale Central account profile</p>`)};
 $('changePassword').onclick=()=>{openAdminModal('Change Password',`<label>New password</label><input id="newAdminPassword" type="password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmAdminPassword" type="password" placeholder="Re-enter new password"><div id="passwordNotice" class="notice hidden"></div><button id="saveAdminPassword" type="button" style="margin-top:12px">Update Password</button>`);$('saveAdminPassword').onclick=async()=>{const a=$('newAdminPassword').value,b=$('confirmAdminPassword').value;if(a.length<6){msg('passwordNotice','Password kam az kam 6 characters ka hona chahiye.',true);return}if(a!==b){msg('passwordNotice','Dono passwords match nahi karte.',true);return}const {error}=await db.auth.updateUser({password:a});if(error)msg('passwordNotice',error.message,true);else msg('passwordNotice','Password successfully update ho gaya.')};};
 $('settingsBtn').onclick=()=>openAdminModal('Settings',`<p><b>Brand</b></p><p class="muted">Sale Central</p><p><b>Theme</b></p><p class="muted">Navy blue &amp; blue, light dashboard</p><p class="muted">This panel is a basic account settings overview.</p>`);
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing'){loadInvoices();setTimeout(()=>$('billingScanInput').focus(),100)}});
+function focusBillingScanner(){const input=$('billingScanInput');if(!input||$('billing').classList.contains('hidden'))return;setTimeout(()=>{if(!$('billing').classList.contains('hidden')){input.focus({preventScroll:true});input.select?.()}},180)}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='billing'){loadInvoices();focusBillingScanner()}});
 $('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;
 $('exchangeIssue').onclick=issueExchangeCredit;
 $('exchangeQr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();issueExchangeCredit()}});
@@ -323,54 +317,62 @@ function renderCart(){
  $('cartCount').textContent=cart.length;
  const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
  $('cartTotal').textContent=money(total);$('checkoutTotal').textContent=money(total);
- $('cartRows').innerHTML=cart.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.price)}</td><td><button class="secondary" data-remove-qr="${esc(x.qr_code)}" type="button">Remove</button></td></tr>`).join('')||'<tr><td colspan="5">Cart is empty. Billing scanner se garment scan karein.</td></tr>';
+ $('cartRows').innerHTML=cart.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.price)}</td><td><button class="secondary" data-remove-qr="${esc(x.qr_code)}" type="button">Remove</button></td></tr>`).join('')||'<tr><td colspan="5">Cart is empty. Billing mein garment QR scan karein.</td></tr>';
  $('cartRows').querySelectorAll('[data-remove-qr]').forEach(b=>b.onclick=()=>{cart=cart.filter(x=>x.qr_code!==b.dataset.removeQr);renderCart()});
 }
-// Billing USB scanner: each Enter-terminated QR is looked up and added to the cart.
-let billingScanQueue=Promise.resolve();
-async function addBillingQrToCart(code){
- code=String(code||'').trim();
- if(!code)return;
- const status=$('billingScanMsg');
- if(cart.some(x=>x.qr_code===code)){
-  status.textContent='Already in cart: '+code;
-  status.className='notice error';
-  return;
- }
- status.textContent='Checking QR: '+code+'…';
- status.className='notice';
- try{
-  const {data,error}=await db.from('garment_qr')
-   .select('id,product_id,size,qr_code,status,products(name,fabric_name,color,price)')
-   .eq('qr_code',code).maybeSingle();
-  if(error)throw error;
-  if(!data)throw new Error('This QR code is not registered in Sale Central.');
-  if(data.status!=='in_stock')throw new Error('This garment is already sold or unavailable.');
-  const product=data.products||{};
-  const price=product.price==null?null:Number(product.price);
-  if(price===null||!Number.isFinite(price)||price<0)throw new Error('Product price is missing or invalid. Save the design price first.');
-  cart.push({...data,product_name:product.name||'Garment',fabric_name:product.fabric_name||'',color:product.color||'',price});
-  renderCart();
-  status.textContent='✓ '+(product.name||'Product')+' | Size '+(data.size||'—')+' | '+money(price)+' added to cart. Scan next product.';
-  status.className='notice success';
- }catch(err){
-  status.textContent='Scan failed: '+(err.message||String(err));
-  status.className='notice error';
- }
-}
-function queueBillingQr(code){
+let billingScanQueue = Promise.resolve();
+function addBillingScanToQueue(code){
  const clean=String(code||'').trim();
  if(!clean)return;
  billingScanQueue=billingScanQueue.then(()=>addBillingQrToCart(clean)).catch(err=>{
-  const status=$('billingScanMsg');status.textContent='Scanner error: '+(err.message||String(err));status.className='notice error';
+   console.error('Billing QR scan error:',err);
+   $('billingScanMsg').textContent='Scan error: '+(err.message||String(err));
+   $('billingScanMsg').className='notice error';
  });
 }
+async function addBillingQrToCart(code){
+ if(cart.some(x=>x.qr_code===code)){
+   $('billingScanMsg').textContent='Yeh QR pehle se cart mein hai.';
+   $('billingScanMsg').className='notice error';
+   return;
+ }
+ $('billingScanButton').disabled=true;
+ $('billingScanMsg').textContent='QR verify ho raha hai…';
+ $('billingScanMsg').className='notice';
+ try{
+   const {data,error}=await db.from('garment_qr')
+     .select('id,product_id,size,qr_code,status,products(name,fabric_name,color,price)')
+     .eq('qr_code',code).maybeSingle();
+   if(error)throw error;
+   if(!data)throw new Error('Yeh QR Sale Central mein registered nahi hai.');
+   if(data.status!=='in_stock')throw new Error('Yeh garment sold hai ya stock mein available nahi.');
+   const p=data.products||{};
+   const price=p.price==null?null:Number(p.price);
+   if(price===null||!Number.isFinite(price)||price<0)throw new Error('Is design ki valid price set nahi.');
+   cart.push({...data,product_name:p.name||'Garment',fabric_name:p.fabric_name||'',color:p.color||'',price});
+   renderCart();
+   $('billingScanMsg').textContent='✓ '+(p.name||'Product')+' · '+(data.size||'')+' added to cart. Scan next product.';
+   $('billingScanMsg').className='notice success';
+ }catch(err){
+   $('billingScanMsg').textContent=err.message||String(err);
+   $('billingScanMsg').className='notice error';
+ }finally{
+   $('billingScanButton').disabled=false;
+   $('billingScanInput').value='';
+   focusBillingScanner();
+ }
+}
+$('billingScanButton').onclick=()=>{
+ const code=$('billingScanInput').value;
+ $('billingScanInput').value='';
+ addBillingScanToQueue(code);
+};
 $('billingScanInput').addEventListener('keydown',e=>{
  if(e.key==='Enter'){
-  e.preventDefault();
-  const code=$('billingScanInput').value.trim();
-  $('billingScanInput').value='';
-  queueBillingQr(code);
+   e.preventDefault();
+   const code=$('billingScanInput').value;
+   $('billingScanInput').value='';
+   addBillingScanToQueue(code);
  }
 });
 
@@ -386,7 +388,7 @@ function renderInvoice(inv,items,payments){
  const rowsHtml=items.map(x=>`<tr><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.qr_code)}</td><td>${money(x.unit_price??x.price)}</td></tr>`).join('');
  const payHtml=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'').toUpperCase())}</td><td>${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td>Unpaid</td></tr>';
  const status=inv.payment_status||'unpaid';
- const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2>Sale Central</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date().toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with Sale Central!</p><p style="text-align:center;font-size:11px;margin-top:12px;color:#667085"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
+ const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2 style="font-size:27px;letter-spacing:2px;color:#102b59">ZANIS</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date().toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Size</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with ZANIS!</p><p style="text-align:center;font-size:11px;margin-top:12px;color:#667085"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
  $('invoicePreview').innerHTML=html;
  $('downloadInvoicePdf').onclick=()=>downloadInvoicePdf(inv,items,payments);
  $('printInvoice').onclick=()=>printInvoice(inv,items,payments);
@@ -397,24 +399,41 @@ function downloadInvoicePdf(inv,items,payments){
  if(!JsPDF){billingMessage('PDF library load nahi hui. Print Invoice par click karke printer mein Save as PDF select karein.',true);return}
  const doc=new JsPDF({unit:'mm',format:'a4'});let y=18;
  const line=(txt,size=10,bold=false)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);const lines=doc.splitTextToSize(String(txt),180);if(y+lines.length*6>280){doc.addPage();y=18}doc.text(lines,15,y);y+=lines.length*6};
- line('SALE CENTRAL',20,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
+ line('ZANIS',22,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
  items.forEach((x,i)=>line(`${i+1}. ${x.product_name} | Size ${x.size} | QR ${x.qr_code} | ${money(x.unit_price??x.price)}`));
  y+=4;line('PAYMENTS',12,true);if(payments.length)payments.forEach(x=>line(`${String(x.method||x.payment_method||'').toUpperCase()}: ${money(x.amount)}`));else line('No payment received');
- y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with Sale Central!');y+=5;line('EXCHANGE POLICY: Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.',9,false);
+ y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with ZANIS!');y+=5;line('EXCHANGE POLICY: Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.',9,false);
  doc.save((inv.invoice_number||'Sale Central-Invoice')+'.pdf');
 }
 function printInvoice(inv,items,payments){
- const card=$('invoiceCard');if(!card)return;
- const w=window.open('','_blank','width=850,height=700');if(!w){billingMessage('Popup block ho gaya. Browser mein popups allow karein.',true);return}
- w.document.write(`<!doctype html><html><head><title>${esc(inv.invoice_number)}</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:Arial,sans-serif;color:#17233d;padding:24px}table{width:100%;border-collapse:collapse;margin:12px 0}td,th{text-align:left;padding:9px;border-bottom:1px solid #ddd;font-size:12px}.invoice-head{display:flex;justify-content:space-between;border-bottom:2px solid #1e3d70;padding-bottom:12px}.mini-grid{display:flex;gap:30px;margin:16px 0}.muted{color:#667085;font-size:12px}.status-pill{font-weight:bold}.cart-total{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #ddd;font-weight:bold}.invoice-total{font-size:20px}</style></head><body>${card.outerHTML}<script>window.onload=()=>{window.print()}<\/script></body></html>`);w.document.close();
+ const w=window.open('','_blank','width=420,height=720');
+ if(!w){billingMessage('Print window block ho gayi. Chrome mein pop-ups allow karein.',true);return}
+ const itemRows=items.map((x,i)=>`<tr><td class="item"><b>${i+1}. ${esc(x.product_name)}</b><small>Size: ${esc(x.size)} · QR: ${esc(x.qr_code)}</small></td><td class="amount">${money(x.unit_price??x.price)}</td></tr>`).join('');
+ const paymentRows=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'Payment').toUpperCase())}</td><td class="amount">${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td class="amount">Unpaid</td></tr>';
+ const status=String(inv.payment_status||'unpaid').toUpperCase();
+ const receipt=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZANIS - ${esc(inv.invoice_number||'Invoice')}</title><style>
+ @page{size:80mm auto;margin:3mm}*{box-sizing:border-box}html,body{margin:0;padding:0;width:100%;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .receipt{width:100%;max-width:74mm;margin:0 auto;padding:0 1mm}.brand{text-align:center;font-size:25px;font-weight:900;letter-spacing:3px;margin:2mm 0 1mm}.subtitle{text-align:center;font-size:11px;font-weight:bold;margin-bottom:3mm}.rule{border-top:1px dashed #000;margin:2.5mm 0}.meta{display:flex;justify-content:space-between;gap:4px;margin:1.5mm 0}.meta span:first-child{font-weight:bold}.customer{margin:2mm 0;line-height:1.5}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:2mm 0}td{padding:2mm 0;vertical-align:top;border-bottom:1px dotted #aaa;overflow-wrap:anywhere}.item{width:68%}.amount{width:32%;text-align:right;white-space:nowrap;font-weight:bold}.item small{display:block;font-size:9px;margin-top:1mm}.pay-title{font-weight:bold;margin-top:2mm}.total-line{display:flex;justify-content:space-between;padding:1.5mm 0;font-size:11px}.grand{font-weight:900;font-size:14px;border-top:1px solid #000;margin-top:1mm;padding-top:2mm}.footer{text-align:center;line-height:1.5;margin:4mm 0 2mm;font-size:10px}.policy{font-size:8px;line-height:1.35;text-align:left;margin-top:3mm}
+ @media screen{body{padding:8px;background:#eee}.receipt{background:#fff;padding:5mm;box-shadow:0 1px 8px #0002}}
+ </style></head><body><main class="receipt"><div class="brand">ZANIS</div><div class="subtitle">SALES INVOICE</div><div class="rule"></div>
+ <div class="meta"><span>Invoice:</span><span>${esc(inv.invoice_number||'—')}</span></div><div class="meta"><span>Date:</span><span>${esc(new Date().toLocaleString())}</span></div>
+ <div class="customer"><b>Customer:</b> ${esc(inv.customer_name||'Walk-in Customer')}<br><b>Phone:</b> ${esc(inv.customer_phone||'—')}</div><div class="rule"></div>
+ <table><tbody>${itemRows}</tbody></table><div class="rule"></div><div class="pay-title">PAYMENT DETAILS</div><table><tbody>${paymentRows}</tbody></table>
+ <div class="rule"></div><div class="total-line grand"><span>TOTAL</span><span>${money(inv.total_amount)}</span></div><div class="total-line"><span>Paid</span><b>${money(inv.paid_amount)}</b></div><div class="total-line"><span>Balance Due</span><b>${money(inv.balance_due)}</b></div><div class="total-line"><span>Status</span><b>${esc(status)}</b></div>
+ <div class="rule"></div><div class="footer"><b>Thank you for shopping with ZANIS!</b><br>We look forward to serving you again.</div><div class="policy"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</div></main></body></html>`;
+ w.document.open();w.document.write(receipt);w.document.close();
+ const doPrint=()=>{try{w.focus();w.print()}catch(e){billingMessage('Print start nahi ho saka: '+(e.message||e),true)}};
+ // Let the receipt finish rendering before opening the print dialog.
+ setTimeout(doPrint,700);
 }
+
 async function loadInvoices(){
  const r=await db.from('invoices').select('id,invoice_number,customer_name,customer_phone,total_amount,paid_amount,balance_due,payment_status,created_at').order('created_at',{ascending:false}).limit(100);
  if(r.error){$('invoiceRows').innerHTML=`<tr><td colspan="7">${esc(r.error.message)}</td></tr>`;return}
  const list=r.data||[];$('invoiceRows').innerHTML=list.map(x=>`<tr><td><b>${esc(x.invoice_number)}</b></td><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.customer_name||'Walk-in')}</td><td>${money(x.total_amount)}</td><td>${money(x.paid_amount)}</td><td>${money(x.balance_due)}</td><td><span class="status-pill ${esc(x.payment_status)}">${esc(x.payment_status)}</span></td></tr>`).join('')||'<tr><td colspan="7">No invoices yet.</td></tr>';
 }
 $('checkout').onclick=async()=>{
- if(!cart.length){billingMessage('Checkout se pehle QR Scanner se garments cart mein add karein.',true);return}
+ if(!cart.length){billingMessage('Checkout se pehle Billing scanner se garments cart mein add karein.',true);return}
  const total=cart.reduce((a,x)=>a+Number(x.price||0),0);if(cart.some(x=>x.price==null||!Number.isFinite(Number(x.price)))){billingMessage('Cart mein kisi design ki price missing hai.',true);return}
  const voucherCode=$('billVoucherCode').value.trim();let voucherBalance=0,creditUsed=0;
  if(voucherCode){
