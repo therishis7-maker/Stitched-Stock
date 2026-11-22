@@ -583,9 +583,11 @@ function printInvoice(inv,items,payments,existingWindow){
  try{
   w.document.open();w.document.write(receipt);w.document.close();
   const triggerPrint=()=>{if(w.closed)return;try{w.focus();w.print()}catch(e){billingMessage('Print start nahi ho saka: '+(e.message||e),true)}};
-  // Wait for the receipt document's fonts and layout to finish before sending it to Chrome's print pipeline.
-  const schedulePrint=()=>{if(w.closed)return;const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));};
-  if(w.document.readyState==='complete')schedulePrint();else w.onload=()=>schedulePrint();
+  // Wait for the print page to finish loading and rendering before invoking print.
+  if(w.document.readyState==='complete'){
+   const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();
+   fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));
+  }else w.onload=()=>{const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));};
  }catch(e){billingMessage('Invoice print page tayar nahi hui: '+(e.message||e),true)}
 }
 async function loadInvoices(){
@@ -687,21 +689,8 @@ async function openSavedInvoice(invoiceId,shouldPrint){
  try{
   const local=await cachedSnapshot('localInvoices',[]);const found=local.find(x=>x.invoice.id===invoiceId);
   if(found){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='billing'));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!=='billing'));const displayInv=found.serverInvoice&&found.synced?found.serverInvoice:found.invoice;renderInvoice(displayInv,found.items,found.payments);if(shouldPrint)setTimeout(()=>printInvoice(displayInv,found.items,found.payments,printWindow),250);else $('invoicePreview').scrollIntoView({behavior:'smooth',block:'start'});return;}
-  // Sales History already refreshes these snapshots; use them first for a fast reprint.
-  const cachedServerInvoices=await cachedSnapshot('invoices',[]);
-  const cachedServerInvoice=cachedServerInvoices.find(x=>x.id===invoiceId);
-  const cachedDetailsMap=await cachedSnapshot('invoiceDetails',{});
-  const cachedDetails=cachedDetailsMap[invoiceId];
-  if(cachedServerInvoice&&cachedDetails){
-   document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='billing'));
-   ['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!=='billing'));
-   renderInvoice(cachedServerInvoice,cachedDetails.items||[],cachedDetails.payments||[]);
-   if(shouldPrint)printInvoice(cachedServerInvoice,cachedDetails.items||[],cachedDetails.payments||[],printWindow);
-   else $('invoicePreview').scrollIntoView({behavior:'smooth',block:'start'});
-   return;
-  }
   if(offlineMode()){
-   const server=cachedServerInvoices;const inv=server.find(x=>x.id===invoiceId);if(!inv)throw new Error('Invoice is not available in this offline cache.');
+   const server=await cachedSnapshot('invoices',[]);const inv=server.find(x=>x.id===invoiceId);if(!inv)throw new Error('Invoice is not available in this offline cache.');
    const details=await cachedSnapshot('invoiceDetails',{});const d=details[invoiceId];if(!d)throw new Error('Invoice items offline cache mein available nahi. App ko online open karke invoice history load karein.');
    renderInvoice(inv,d.items||[],d.payments||[]);if(shouldPrint)setTimeout(()=>printInvoice(inv,d.items||[],d.payments||[],printWindow),250);else $('invoicePreview').scrollIntoView({behavior:'smooth',block:'start'});return;
   }
