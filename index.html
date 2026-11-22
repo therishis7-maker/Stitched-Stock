@@ -583,9 +583,9 @@ function printInvoice(inv,items,payments,existingWindow){
  try{
   w.document.open();w.document.write(receipt);w.document.close();
   const triggerPrint=()=>{if(w.closed)return;try{w.focus();w.print()}catch(e){billingMessage('Print start nahi ho saka: '+(e.message||e),true)}};
-  // The receipt uses system fonts only; do not wait for remote fonts or multiple render cycles.
-  const schedulePrint=()=>{if(w.closed)return;w.requestAnimationFrame(()=>setTimeout(triggerPrint,100));};
-  if(w.document.readyState==='complete')schedulePrint();else w.onload=schedulePrint;
+  // Wait for the receipt document's fonts and layout to finish before sending it to Chrome's print pipeline.
+  const schedulePrint=()=>{if(w.closed)return;const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));};
+  if(w.document.readyState==='complete')schedulePrint();else w.onload=()=>schedulePrint();
  }catch(e){billingMessage('Invoice print page tayar nahi hui: '+(e.message||e),true)}
 }
 async function loadInvoices(){
