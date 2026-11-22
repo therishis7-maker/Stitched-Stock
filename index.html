@@ -437,21 +437,25 @@ function printInvoice(inv,items,payments,existingWindow){
  const paymentRows=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'Payment').toUpperCase())}</td><td class="amount">${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td class="amount">Unpaid</td></tr>';
  const status=String(inv.payment_status||'unpaid').toUpperCase();
  const receipt=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZANIS - ${esc(inv.invoice_number||'Invoice')}</title><style>
- @page{size:80mm auto;margin:3mm}*{box-sizing:border-box}html,body{margin:0;padding:0;width:100%;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
- .receipt{width:100%;max-width:74mm;margin:0 auto;padding:0 1mm}.brand{text-align:center;font-size:25px;font-weight:900;letter-spacing:3px;margin:2mm 0 1mm}.subtitle{text-align:center;font-size:11px;font-weight:bold;margin-bottom:3mm}.rule{border-top:1px dashed #000;margin:2.5mm 0}.meta{display:flex;justify-content:space-between;gap:4px;margin:1.5mm 0}.meta span:first-child{font-weight:bold}.customer{margin:2mm 0;line-height:1.5}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:2mm 0}td{padding:2mm 0;vertical-align:top;border-bottom:1px dotted #aaa;overflow-wrap:anywhere}.item{width:68%}.amount{width:32%;text-align:right;white-space:nowrap;font-weight:bold}.item small{display:block;font-size:9px;margin-top:1mm}.pay-title{font-weight:bold;margin-top:2mm}.total-line{display:flex;justify-content:space-between;padding:1.5mm 0;font-size:11px}.grand{font-weight:900;font-size:14px;border-top:1px solid #000;margin-top:1mm;padding-top:2mm}.footer{text-align:center;line-height:1.5;margin:4mm 0 2mm;font-size:10px}.policy{font-size:8px;line-height:1.35;text-align:left;margin-top:3mm}
- @media screen{body{padding:8px;background:#eee}.receipt{background:#fff;padding:5mm;box-shadow:0 1px 8px #0002}}
+ @page{size:80mm auto;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:80mm;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .receipt{width:72mm;margin:0 auto;padding:2mm 1mm}.brand{text-align:center;font-size:25px;font-weight:900;letter-spacing:3px;margin:2mm 0 1mm}.subtitle{text-align:center;font-size:11px;font-weight:bold;margin-bottom:3mm}.rule{border-top:1px dashed #000;margin:2.5mm 0}.meta{display:flex;justify-content:space-between;gap:4px;margin:1.5mm 0}.meta span:first-child{font-weight:bold}.customer{margin:2mm 0;line-height:1.5}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:2mm 0}td{padding:2mm 0;vertical-align:top;border-bottom:1px dotted #aaa;overflow-wrap:anywhere}.item{width:68%}.amount{width:32%;text-align:right;white-space:nowrap;font-weight:bold}.item small{display:block;font-size:9px;margin-top:1mm}.pay-title{font-weight:bold;margin-top:2mm}.total-line{display:flex;justify-content:space-between;padding:1.5mm 0;font-size:11px}.grand{font-weight:900;font-size:14px;border-top:1px solid #000;margin-top:1mm;padding-top:2mm}.footer{text-align:center;line-height:1.5;margin:4mm 0 2mm;font-size:10px}.policy{font-size:8px;line-height:1.35;text-align:left;margin-top:3mm}
+ @media screen{body{width:auto;padding:8px;background:#eee}.receipt{background:#fff;padding:5mm;box-shadow:0 1px 8px #0002}}
  </style></head><body><main class="receipt"><div class="brand">ZANIS</div><div class="subtitle">SALES INVOICE</div><div class="rule"></div>
  <div class="meta"><span>Invoice:</span><span>${esc(inv.invoice_number||'—')}</span></div><div class="meta"><span>Date:</span><span>${esc(new Date(inv.created_at||Date.now()).toLocaleString())}</span></div>
  <div class="customer"><b>Customer:</b> ${esc(inv.customer_name||'Walk-in Customer')}<br><b>Phone:</b> ${esc(inv.customer_phone||'—')}</div><div class="rule"></div>
  <table><tbody>${itemRows}</tbody></table><div class="rule"></div><div class="pay-title">PAYMENT DETAILS</div><table><tbody>${paymentRows}</tbody></table>
  <div class="rule"></div><div class="total-line grand"><span>TOTAL</span><span>${money(inv.total_amount)}</span></div><div class="total-line"><span>Paid</span><b>${money(inv.paid_amount)}</b></div><div class="total-line"><span>Balance Due</span><b>${money(inv.balance_due)}</b></div><div class="total-line"><span>Status</span><b>${esc(status)}</b></div>
- <div class="rule"></div><div class="footer"><b>Thank you for shopping with ZANIS!</b><br>We look forward to serving you again.</div><div class="policy"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</div></main></body></html>`;
- w.document.open();w.document.write(receipt);w.document.close();
- const doPrint=()=>{try{w.focus();w.print()}catch(e){billingMessage('Print start nahi ho saka: '+(e.message||e),true)}};
- // Let the receipt finish rendering before opening the print dialog.
- setTimeout(doPrint,700);
+ <div class="rule"></div><div class="footer"><b>Thank you for shopping with ZANIS!</b><br>We look forward to serving you again.</div><div class="policy"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange</div></main></body></html>`;
+ try{
+  w.document.open();w.document.write(receipt);w.document.close();
+  const triggerPrint=()=>{if(w.closed)return;try{w.focus();w.print()}catch(e){billingMessage('Print start nahi ho saka: '+(e.message||e),true)}};
+  // Wait for the print page to finish loading and rendering before invoking print.
+  if(w.document.readyState==='complete'){
+   const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();
+   fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));
+  }else w.onload=()=>{const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));};
+ }catch(e){billingMessage('Invoice print page tayar nahi hui: '+(e.message||e),true)}
 }
-
 async function loadInvoices(){
  const r=await db.from('invoices').select('id,invoice_number,customer_name,customer_phone,total_amount,paid_amount,balance_due,payment_status,created_at').order('created_at',{ascending:false}).limit(100);
  if(r.error){$('invoiceRows').innerHTML=`<tr><td colspan="8">${esc(r.error.message)}</td></tr>`;return}
