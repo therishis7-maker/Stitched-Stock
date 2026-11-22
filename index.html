@@ -190,7 +190,46 @@ window.__stitchQrLibraryReady = new Promise(resolve => {
 const SUPABASE_URL="https://fkrkokppeuulgrthjspm.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_60cBiBtkR3K5FXyNzkgUCg_wLekDsmn";
 let db, rows=[], movements=[], sizeRows=[], scanner=null, stagedQr="", stagedGarment=null, batchCodes=[], cart=[], lastInvoice=null, pendingCheckout=null, billingStockItems=[];
+const OFFLINE_DB_NAME='sale-central-offline-v1';
+let offlineDbPromise=null, offlineSyncRunning=false, forceOfflineMode=false;
 const $=x=>document.getElementById(x);
+function markOfflineMode(){forceOfflineMode=true;const el=$('networkStatus');if(el){el.textContent='OFFLINE';el.style.background='#fff0f0';el.style.color='#9d2525'}}
+function openOfflineDb(){
+ if(offlineDbPromise)return offlineDbPromise;
+ offlineDbPromise=new Promise((resolve,reject)=>{
+  const req=indexedDB.open(OFFLINE_DB_NAME,1);
+  req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains('cache'))d.createObjectStore('cache');if(!d.objectStoreNames.contains('pending'))d.createObjectStore('pending',{keyPath:'client_sale_id'});};
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Local storage open nahi ho saka.'));
+ });
+ return offlineDbPromise;
+}
+async function offlineGet(store,key){const d=await openOfflineDb();return new Promise((resolve,reject)=>{const r=d.transaction(store,'readonly').objectStore(store).get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});}
+async function offlinePut(store,key,value){const d=await openOfflineDb();return new Promise((resolve,reject)=>{const tx=d.transaction(store,'readwrite');if(store==='pending')tx.objectStore(store).put(value);else tx.objectStore(store).put(value,key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Local save fail ho gaya.'))});}
+async function offlineAll(store){const d=await openOfflineDb();return new Promise((resolve,reject)=>{const r=d.transaction(store,'readonly').objectStore(store).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)});}
+async function cacheSnapshot(key,value){try{await offlinePut('cache',key,value)}catch(e){console.warn('Offline cache save:',key,e)}}
+async function cachedSnapshot(key,fallback=[]){try{return (await offlineGet('cache',key))??fallback}catch(e){console.warn('Offline cache read:',key,e);return fallback}}
+async function saveOfflineSaleAndStock(sale,localEntry){
+ const d=await openOfflineDb();
+ const cachedProducts=await cachedSnapshot('products',[]),cachedSizes=await cachedSnapshot('sizes',[]),cachedSkus=await cachedSnapshot('billingStockItems',[]),localInvoices=await cachedSnapshot('localInvoices',[]);
+ const nextProducts=cachedProducts.map(p=>({...p})),nextSizes=cachedSizes.map(x=>({...x}));
+ for(const item of sale.items){
+  const product=nextProducts.find(x=>x.id===item.product_id);if(product)product.quantity=Math.max(0,Number(product.quantity||0)-1);
+  const sizeRow=nextSizes.find(x=>x.product_id===item.product_id&&x.size===item.size);if(sizeRow)sizeRow.quantity=Math.max(0,Number(sizeRow.quantity||0)-1);
+ }
+ const soldCodes=new Set(sale.qr_codes);const nextSkus=cachedSkus.filter(x=>!soldCodes.has(x.qr_code));
+ const nextLocals=[localEntry,...localInvoices];
+ return new Promise((resolve,reject)=>{
+  const tx=d.transaction(['pending','cache'],'readwrite');
+  tx.objectStore('pending').put(sale);
+  const c=tx.objectStore('cache');c.put(nextProducts,'products');c.put(nextSizes,'sizes');c.put(nextSkus,'billingStockItems');c.put(nextLocals,'localInvoices');
+  tx.oncomplete=()=>{rows=nextProducts;sizeRows=nextSizes;billingStockItems=nextSkus;resolve(true)};
+  tx.onerror=()=>reject(tx.error||new Error('Offline sale aur local stock save nahi ho sake.'));
+  tx.onabort=()=>reject(tx.error||new Error('Offline sale transaction cancel ho gayi.'));
+ });
+}
+function isNetworkFailure(e){const m=String(e?.message||e||'');return /failed to fetch|networkerror|network request failed|load failed|connection.*(lost|reset|refused)|internet disconnected/i.test(m)}
+function offlineMode(){return !navigator.onLine||forceOfflineMode}
+
 function msg(id,t,bad=false){const el=$(id);el.textContent=t;el.className='notice '+(bad?'error':'success')}
 function hide(id){$(id).classList.add('hidden')}
 function show(id){$(id).classList.remove('hidden')}
@@ -203,7 +242,14 @@ async function start(){
  db.auth.onAuthStateChange((_e,s)=>{if(s)showApp();else showAuth()});
 }
 function showAuth(){$('auth').classList.remove('hidden');$('app').classList.add('hidden')}
-async function showApp(){$('auth').classList.add('hidden');$('app').classList.remove('hidden');const {error}=await db.rpc('create_my_products');if(error){msg('msg','Product setup: '+error.message,true);return}await load()}
+async function showApp(){
+ $('auth').classList.add('hidden');$('app').classList.remove('hidden');
+ if(offlineMode()){await load();return}
+ const {error}=await db.rpc('create_my_products');
+ if(error){if(!navigator.onLine||isNetworkFailure(error)){markOfflineMode();await load();return}msg('msg','Product setup: '+error.message,true);return}
+ await load();
+ if(navigator.onLine)syncPendingSales();
+}
 $('signup').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signUp({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true);else msg('authMsg','Account create request bhej di. Email confirmation required ho sakti hai.')};
 $('login').onclick=async()=>{hide('authMsg');const {error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)msg('authMsg',error.message,true)};
 $('logout').onclick=()=>db.auth.signOut();
@@ -230,36 +276,48 @@ function fillDesignFields(){
 $('product').addEventListener('change',fillDesignFields);
 async function load(){
  hide('msg');
+ if(offlineMode()){await loadOfflineDashboard();return}
  const r=await db.from('products').select('id,name,category,quantity,updated_at,fabric_name,color,price').order('name');
- if(r.error){msg('msg',r.error.message,true);return}rows=r.data||[];
- $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
- fillDesignFields();
+ if(r.error){if(!navigator.onLine||isNetworkFailure(r.error)){markOfflineMode();await loadOfflineDashboard();return}msg('msg',r.error.message,true);return}rows=r.data||[];await cacheSnapshot('products',rows);
+ $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');fillDesignFields();
  $('total').textContent=rows.reduce((a,x)=>a+Number(x.quantity||0),0);$('designTotal').textContent=rows.length;
  $('stockRows').innerHTML=rows.map(x=>{const q=Number(x.quantity||0);return `<tr><td><span class="product-icon">👕</span>${esc(x.name)}</td><td>${esc(x.category||'Other')}</td><td><b>${q}</b></td><td><span class="status-pill ${q>0?'':'unpaid'}">${q>0?'In Stock':'Out of Stock'}</span></td><td>${x.updated_at?new Date(x.updated_at).toLocaleString():'—'}</td><td><button type="button" class="secondary" data-stock-detail="${x.id}">Open Details</button></td></tr>`}).join('')||'<tr><td colspan="6">No products found.</td></tr>';
  $('stockRows').querySelectorAll('[data-stock-detail]').forEach(b=>b.onclick=()=>openStockDetails(b.dataset.stockDetail));
  const h=await db.from('stock_movements').select('movement_type,quantity,note,created_at,products(name)').order('created_at',{ascending:false}).limit(500);
- if(h.error){msg('msg',h.error.message,true);return}movements=h.data||[];
+ if(h.error){if(!navigator.onLine||isNetworkFailure(h.error)){markOfflineMode();await loadOfflineDashboard();return}msg('msg',h.error.message,true);return}movements=h.data||[];await cacheSnapshot('movements',movements);
+ renderHistoryAndSales();await loadSizes();await loadInvoices();
+}
+function renderHistoryAndSales(){
  $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':'Sale Out'}</td><td>${x.quantity}</td><td>${esc(x.note||'')}</td></tr>`).join('')||'<tr><td colspan="5">No history yet.</td></tr>';
- const sold=movements.filter(x=>x.movement_type==='OUT').reduce((a,x)=>a+Number(x.quantity||0),0);
- const today=new Date().toDateString(), soldToday=movements.filter(x=>x.movement_type==='OUT'&&new Date(x.created_at).toDateString()===today).reduce((a,x)=>a+Number(x.quantity||0),0);
+ const sold=movements.filter(x=>x.movement_type==='OUT').reduce((a,x)=>a+Number(x.quantity||0),0);const today=new Date().toDateString();const soldToday=movements.filter(x=>x.movement_type==='OUT'&&new Date(x.created_at).toDateString()===today).reduce((a,x)=>a+Number(x.quantity||0),0);
  $('soldTotal').textContent=sold;$('todaySold').textContent=soldToday;$('salesAll').textContent=sold;$('salesToday').textContent=soldToday;
- await loadSizes();
- await loadInvoices();
+}
+async function loadOfflineDashboard(){
+ try{
+  rows=await cachedSnapshot('products',[]);movements=await cachedSnapshot('movements',[]);sizeRows=await cachedSnapshot('sizes',[]);billingStockItems=await cachedSnapshot('billingStockItems',[]);
+  $('product').innerHTML=rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');fillDesignFields();
+  $('total').textContent=rows.reduce((a,x)=>a+Number(x.quantity||0),0);$('designTotal').textContent=rows.length;
+  $('stockRows').innerHTML=rows.map(x=>{const q=Number(x.quantity||0);return `<tr><td><span class="product-icon">👕</span>${esc(x.name)}</td><td>${esc(x.category||'Other')}</td><td><b>${q}</b></td><td><span class="status-pill ${q>0?'':'unpaid'}">${q>0?'In Stock':'Out of Stock'}</span></td><td>${x.updated_at?new Date(x.updated_at).toLocaleString():'—'}</td><td><button type="button" class="secondary" data-stock-detail="${x.id}">Open Details</button></td></tr>`}).join('')||'<tr><td colspan="6">No offline stock cache. Internet par connect ho kar app ek dafa load karein.</td></tr>';
+  $('stockRows').querySelectorAll('[data-stock-detail]').forEach(b=>b.onclick=()=>openStockDetails(b.dataset.stockDetail));renderHistoryAndSales();
+  await loadSizes();await loadInvoices();await loadBillingSkuList();
+  if(!rows.length)msg('msg','Offline stock abhi device par save nahi. Internet par app open karke dashboard aur SKU list load karein.',true);
+  else msg('msg','OFFLINE MODE: Yeh saved stock snapshot hai. Doosre device par hui sales yahan abhi reflect nahi hongi.',true);
+ }catch(e){msg('msg','Offline data load nahi hua: '+(e.message||e),true)}
 }
 async function openStockDetails(productId){
  const p=rows.find(x=>x.id===productId);if(!p)return;
- const r=await db.from('product_sizes').select('size,quantity').eq('product_id',productId).order('size');
+ const r=offlineMode()?{data:sizeRows.filter(x=>x.product_id===productId)}:await db.from('product_sizes').select('size,quantity').eq('product_id',productId).order('size');
  if(r.error){openAdminModal('Stock Details',`<p class="notice error">${esc(r.error.message)}</p>`);return}
  const sizes=r.data||[];const q=Number(p.quantity||0);
  openAdminModal('Complete Stock Details',`<p><b>Product:</b> ${esc(p.name)}</p><p><b>Category:</b> ${esc(p.category||'Other')}</p><p><b>Fabric / Name:</b> ${esc(p.fabric_name||'—')}</p><p><b>Colour:</b> ${esc(p.color||'—')}</p><p><b>Price:</b> ${money(p.price)}</p><p><b>Total Available:</b> ${q}</p><p><b>Status:</b> <span class="status-pill ${q>0?'':'unpaid'}">${q>0?'In Stock':'Out of Stock'}</span></p><h3>Size-wise Quantity</h3><div class="tablewrap"><table><thead><tr><th>Size</th><th>Quantity</th><th>Status</th></tr></thead><tbody>${['S','M','L','XL','XXL'].map(sz=>{const n=Number(sizes.find(x=>x.size===sz)?.quantity||0);return `<tr><td>${sz}</td><td>${n}</td><td>${n>0?'In Stock':'Out of Stock'}</td></tr>`}).join('')}</tbody></table></div>`);
 }
 async function loadSizes(){
- const r=await db.from('product_sizes').select('product_id,size,quantity');
- if(r.error){$('sizeRows').innerHTML=`<tr><td colspan="7">${esc(r.error.message)}</td></tr>`;return}
- sizeRows=r.data||[];
+ let r;if(offlineMode())r={data:await cachedSnapshot('sizes',[])};else r=await db.from('product_sizes').select('product_id,size,quantity');
+ if(r.error){if(!offlineMode()&&isNetworkFailure(r.error)){markOfflineMode();sizeRows=await cachedSnapshot('sizes',[])}else{$('sizeRows').innerHTML=`<tr><td colspan="7">${esc(r.error.message)}</td></tr>`;return}}else sizeRows=r.data||[];if(!offlineMode())await cacheSnapshot('sizes',sizeRows);
  $('sizeRows').innerHTML=rows.map(p=>{const vals=['S','M','L','XL','XXL'].map(sz=>Number(sizeRows.find(x=>x.product_id===p.id&&x.size===sz)?.quantity||0));return `<tr><td>${esc(p.name)}</td>${vals.map(v=>`<td>${v}</td>`).join('')}<td><b>${vals.reduce((a,b)=>a+b,0)}</b></td></tr>`}).join('')||'<tr><td colspan="7">No products available.</td></tr>';
 }
 $('save').onclick=async()=>{
+ if(offlineMode()){msg('msg','Add Stock ke liye internet connection zaroori hai. Offline mode mein sirf saved stock dekh sakte hain.',true);return}
  const id=$('product').value,size=$('size').value,qty=Number($('qty').value),note=$('note').value.trim()||null;
  if(!id){msg('msg','Pehle product select karein.',true);return}
  if(!Number.isSafeInteger(qty)||qty<1||qty>500){msg('msg','Quantity 1 se 500 ke darmiyan whole number honi chahiye. 500 se zyada stock ko alag batches mein add karein.',true);return}
@@ -316,11 +374,11 @@ async function stageQr(code){
  if(!stagedQr){$('scanResult').textContent='QR code empty hai.';return}
  if(cart.some(x=>x.qr_code===stagedQr)){$('scanResult').textContent='Yeh garment pehle hi current cart mein add hai.';return}
  $('scanResult').textContent='QR code database mein check ho raha hai…';
- const {data,error}=await db.from('garment_qr')
-   .select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color,price)')
-   .eq('qr_code',stagedQr).maybeSingle();
+ let data,error=null;
+ if(offlineMode())data=billingStockItems.find(x=>x.qr_code===stagedQr)||null;
+ else {const result=await db.from('garment_qr').select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color,price)').eq('qr_code',stagedQr).maybeSingle();data=result.data;error=result.error;}
  if(error){$('scanResult').textContent='QR lookup error: '+error.message;stagedQr='';return}
- if(!data){$('scanResult').textContent='Yeh QR Sale Central mein registered nahi hai. Add Stock se generate kiya gaya original garment QR scan karein.';stagedQr='';return}
+ if(!data){$('scanResult').textContent=offlineMode()?'Yeh QR saved offline stock list mein nahi mila. Pehle online sync karein.':'Yeh QR Sale Central mein registered nahi hai. Add Stock se generate kiya gaya original garment QR scan karein.';stagedQr='';return}
  const p=data.products||{};stagedGarment={...data,product_name:p.name||'Garment',fabric_name:p.fabric_name||'',color:p.color||'',price:p.price==null?null:Number(p.price)};
  const status=data.status==='in_stock'?'In Stock':(data.status==='sold'?'Sold':'Unknown');
  $('scanResult').innerHTML=`
@@ -347,6 +405,7 @@ $('confirmSale').onclick=()=>{if(!stagedGarment||!stagedQr)return;if(cart.some(x
 function money(n){return 'Rs. '+Number(n||0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function billingMessage(t,bad=false){const el=$('billingMsg');el.textContent=t;el.className='notice '+(bad?'error':'success')}
 async function issueExchangeCredit(){
+ if(offlineMode()){$('exchangeMsg').textContent='Exchange / Credit issue karne ke liye internet connection zaroori hai.';$('exchangeMsg').className='notice error';show('exchangeMsg');return}
  const code=$('exchangeQr').value.trim();if(!code){$('exchangeMsg').textContent='Returned QR code enter karein.';$('exchangeMsg').className='notice error';show('exchangeMsg');return}
  const btn=$('exchangeIssue');btn.disabled=true;$('exchangeMsg').textContent='QR, original invoice aur exchange period verify ho rahe hain…';$('exchangeMsg').className='notice';show('exchangeMsg');hide('exchangeResult');
  try{
@@ -376,6 +435,7 @@ function addBillingItemToCart(data){
 }
 async function loadBillingSkuList(){
  if(!db)return;
+ if(offlineMode()){billingStockItems=await cachedSnapshot('billingStockItems',[]);renderBillingSkuList();$('skuListCount').textContent=`${billingStockItems.length} cached available piece(s) · offline snapshot`;return}
  $('skuRows').innerHTML='<tr><td colspan="6">Available pieces load ho rahe hain…</td></tr>';
  $('skuListCount').textContent='Stock se available SKU codes load ho rahe hain…';
  // Range paging loads all in-stock QR rows even when stock exceeds 1,000 pieces.
@@ -390,8 +450,9 @@ async function loadBillingSkuList(){
    if(page.length<pageSize)break;
    start+=pageSize;
   }
-  billingStockItems=all.filter(x=>x.status==='in_stock');renderBillingSkuList();
+  billingStockItems=all.filter(x=>x.status==='in_stock');await cacheSnapshot('billingStockItems',billingStockItems);renderBillingSkuList();
  }catch(error){
+  if(isNetworkFailure(error)){markOfflineMode();billingStockItems=await cachedSnapshot('billingStockItems',[]);renderBillingSkuList();$('skuListCount').textContent=`${billingStockItems.length} cached piece(s) · connection unavailable`;return}
   billingStockItems=[];$('skuRows').innerHTML=`<tr><td colspan="6">SKU list load nahi hui: ${esc(error.message||String(error))}</td></tr>`;$('skuListCount').textContent='List unavailable';
  }
 }
@@ -424,11 +485,11 @@ async function addBillingQrToCart(code){
  $('billingScanMsg').textContent='QR verify ho raha hai…';
  $('billingScanMsg').className='notice';
  try{
-   const {data,error}=await db.from('garment_qr')
-     .select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color,price)')
-     .eq('qr_code',code).maybeSingle();
+   let data,error=null;
+   if(offlineMode())data=billingStockItems.find(x=>x.qr_code===code)||null;
+   else {const result=await db.from('garment_qr').select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color,price)').eq('qr_code',code).maybeSingle();data=result.data;error=result.error;}
    if(error)throw error;
-   if(!data)throw new Error('Yeh QR Sale Central mein registered nahi hai.');
+   if(!data)throw new Error(offlineMode()?'Yeh QR saved offline stock list mein nahi mila. Pehle online sync karein.':'Yeh QR Sale Central mein registered nahi hai.');
    if(data.status!=='in_stock')throw new Error('Yeh garment sold hai ya stock mein available nahi.');
    addBillingItemToCart(data);
    const p=data.products||{};
@@ -471,7 +532,7 @@ function renderInvoice(inv,items,payments){
  const payHtml=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'').toUpperCase())}</td><td>${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td>Unpaid</td></tr>';
  const status=inv.payment_status||'unpaid';
  const cashReceived=Number(inv.cash_received||0),changeReturned=Number(inv.change_returned||0);
- const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2 style="font-size:27px;letter-spacing:2px;color:#102b59">ZANIS</h2><div class="muted">Sales Invoice</div></div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date(inv.created_at||Date.now()).toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Category</th><th>Product</th><th>Size</th><th>Colour</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div><div class="cart-total"><span>Cash Received</span><span>${money(cashReceived)}</span></div><div class="cart-total"><span>Change Returned</span><span>${money(changeReturned)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with ZANIS!</p><p style="text-align:center;font-size:11px;margin-top:12px;color:#667085"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
+ const html=`<div class="invoice-card" id="invoiceCard"><div class="invoice-head"><div><h2 style="font-size:27px;letter-spacing:2px;color:#102b59">ZANIS</h2><div class="muted">Sales Invoice</div>${inv.offline_pending?'<div style="color:#9d2525;font-weight:bold;margin-top:5px">PENDING SYNC — PROVISIONAL OFFLINE RECEIPT</div>':''}</div><div style="text-align:right"><b>${esc(inv.invoice_number)}</b><div class="muted">${new Date(inv.created_at||Date.now()).toLocaleString()}</div><span class="status-pill ${status}">${status.toUpperCase()}</span></div></div><div class="mini-grid"><div><span class="muted">Customer</span><br><b>${esc(inv.customer_name||'Walk-in Customer')}</b></div><div><span class="muted">Phone</span><br><b>${esc(inv.customer_phone||'—')}</b></div></div><div class="tablewrap"><table><thead><tr><th>Category</th><th>Product</th><th>Size</th><th>Colour</th><th>QR Code</th><th>Price</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><div class="tablewrap"><table><thead><tr><th>Payment Method</th><th>Amount</th></tr></thead><tbody>${payHtml}</tbody></table></div><div style="max-width:360px;margin-left:auto"><div class="cart-total"><span>Total</span><span>${money(inv.total_amount)}</span></div><div class="cart-total"><span>Paid</span><span>${money(inv.paid_amount)}</span></div><div class="cart-total"><span>Balance Due</span><span>${money(inv.balance_due)}</span></div><div class="cart-total"><span>Cash Received</span><span>${money(cashReceived)}</span></div><div class="cart-total"><span>Change Returned</span><span>${money(changeReturned)}</span></div></div><p style="text-align:center;margin:22px 0 0" class="muted">Thank you for shopping with ZANIS!</p><p style="text-align:center;font-size:11px;margin-top:12px;color:#667085"><b>EXCHANGE POLICY:</b> Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.</p></div><div class="actions" style="margin-top:12px"><button id="downloadInvoicePdf" type="button">Download Invoice PDF</button><button id="printInvoice" class="secondary" type="button">Print Invoice</button></div>`;
  $('invoicePreview').innerHTML=html;
  $('downloadInvoicePdf').onclick=()=>downloadInvoicePdf(inv,items,payments);
  $('printInvoice').onclick=()=>printInvoice(inv,items,payments);
@@ -482,7 +543,7 @@ function downloadInvoicePdf(inv,items,payments){
  if(!JsPDF){billingMessage('PDF library load nahi hui. Print Invoice par click karke printer mein Save as PDF select karein.',true);return}
  const doc=new JsPDF({unit:'mm',format:'a4'});let y=18;
  const line=(txt,size=10,bold=false)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);const lines=doc.splitTextToSize(String(txt),180);if(y+lines.length*6>280){doc.addPage();y=18}doc.text(lines,15,y);y+=lines.length*6};
- line('ZANIS',22,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
+ line('ZANIS',22,true);line('SALES INVOICE',12,true);if(inv.offline_pending)line('PENDING SYNC - PROVISIONAL OFFLINE RECEIPT',10,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
  items.forEach((x,i)=>line(`${i+1}. ${x.product_name} | Size ${x.size} | QR ${x.qr_code} | ${money(x.unit_price??x.price)}`));
  y+=4;line('PAYMENTS',12,true);if(payments.length)payments.forEach(x=>line(`${String(x.method||x.payment_method||'').toUpperCase()}: ${money(x.amount)}`));else line('No payment received');
  y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Cash Received: '+money(inv.cash_received));line('Change Returned: '+money(inv.change_returned));line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with ZANIS!');y+=5;line('EXCHANGE POLICY: Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.',9,false);
@@ -498,7 +559,7 @@ function printInvoice(inv,items,payments,existingWindow){
  @page{size:80mm auto;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:80mm;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
  .receipt{width:72mm;margin:0 auto;padding:2mm 1mm}.brand{text-align:center;font-size:25px;font-weight:900;letter-spacing:3px;margin:2mm 0 1mm}.subtitle{text-align:center;font-size:11px;font-weight:bold;margin-bottom:3mm}.rule{border-top:1px dashed #000;margin:2.5mm 0}.meta{display:flex;justify-content:space-between;gap:4px;margin:1.5mm 0}.meta span:first-child{font-weight:bold}.customer{margin:2mm 0;line-height:1.5}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:2mm 0}td{padding:2mm 0;vertical-align:top;border-bottom:1px dotted #aaa;overflow-wrap:anywhere}.item{width:68%}.amount{width:32%;text-align:right;white-space:nowrap;font-weight:bold}.item small{display:block;font-size:9px;margin-top:1mm}.pay-title{font-weight:bold;margin-top:2mm}.total-line{display:flex;justify-content:space-between;padding:1.5mm 0;font-size:11px}.grand{font-weight:900;font-size:14px;border-top:1px solid #000;margin-top:1mm;padding-top:2mm}.footer{text-align:center;line-height:1.5;margin:4mm 0 2mm;font-size:10px}.policy{font-size:8px;line-height:1.35;text-align:left;margin-top:3mm}
  @media screen{body{width:auto;padding:8px;background:#eee}.receipt{background:#fff;padding:5mm;box-shadow:0 1px 8px #0002}}
- </style></head><body><main class="receipt"><div class="brand">ZANIS</div><div class="subtitle">SALES INVOICE</div><div class="rule"></div>
+ </style></head><body><main class="receipt"><div class="brand">ZANIS</div><div class="subtitle">SALES INVOICE</div>${inv.offline_pending?'<div style="text-align:center;font-weight:bold;border:1px solid #000;padding:2mm;margin:2mm 0">PENDING SYNC — PROVISIONAL OFFLINE RECEIPT</div>':''}<div class="rule"></div>
  <div class="meta"><span>Invoice:</span><span>${esc(inv.invoice_number||'—')}</span></div><div class="meta"><span>Date:</span><span>${esc(new Date(inv.created_at||Date.now()).toLocaleString())}</span></div>
  <div class="customer"><b>Customer:</b> ${esc(inv.customer_name||'Walk-in Customer')}<br><b>Phone:</b> ${esc(inv.customer_phone||'—')}</div><div class="rule"></div>
  <table><tbody>${itemRows}</tbody></table><div class="rule"></div><div class="pay-title">PAYMENT DETAILS</div><table><tbody>${paymentRows}</tbody></table>
@@ -515,20 +576,75 @@ function printInvoice(inv,items,payments,existingWindow){
  }catch(e){billingMessage('Invoice print page tayar nahi hui: '+(e.message||e),true)}
 }
 async function loadInvoices(){
+ if(offlineMode())return loadOfflineInvoices();
  const r=await db.from('invoices').select('id,invoice_number,customer_name,customer_phone,total_amount,paid_amount,balance_due,cash_received,change_returned,payment_status,created_at').order('created_at',{ascending:false}).limit(1000);
- if(r.error){$('invoiceRows').innerHTML=`<tr><td colspan="8">${esc(r.error.message)}</td></tr>`;return}
- const list=r.data||[];
+ if(r.error){if(isNetworkFailure(r.error)){markOfflineMode();return loadOfflineInvoices()}$('invoiceRows').innerHTML=`<tr><td colspan="8">${esc(r.error.message)}</td></tr>`;return}
+ const serverList=r.data||[];await cacheSnapshot('invoices',serverList);
+ const pendingQueue=(await offlineAll('pending')).filter(x=>x.status==='pending'||x.status==='conflict');
+ const list=[...pendingQueue.map(x=>x.status==='conflict'?{...x.invoice,payment_status:'sync_conflict'}:x.invoice),...serverList];
+ if(serverList.length){
+  const ids=serverList.map(x=>x.id);
+  const [detailRows,paymentRows]=await Promise.all([
+   db.from('invoice_items').select('invoice_id,product_name,size,qr_code,unit_price,line_total,product_id,products(category,color)').in('invoice_id',ids).order('id'),
+   db.from('invoice_payments').select('invoice_id,payment_method,amount').in('invoice_id',ids).order('id')
+  ]);
+  if(!detailRows.error&&!paymentRows.error){
+   const detailMap={};for(const x of detailRows.data||[]){(detailMap[x.invoice_id]??={items:[],payments:[]}).items.push({...x,category:x.products?.category||'Other',color:x.products?.color||'',price:Number(x.unit_price||0)});}
+   for(const x of paymentRows.data||[]){(detailMap[x.invoice_id]??={items:[],payments:[]}).payments.push({method:x.payment_method,amount:x.amount});}
+   await cacheSnapshot('invoiceDetails',detailMap);
+  }
+ }
  const now=new Date(),dayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()),weekStart=new Date(dayStart);weekStart.setDate(weekStart.getDate()-((weekStart.getDay()+6)%7));const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
- const sumFrom=start=>list.filter(x=>new Date(x.created_at)>=start).reduce((a,x)=>a+Number(x.total_amount||0),0);
+ const sumFrom=start=>serverList.filter(x=>new Date(x.created_at)>=start).reduce((a,x)=>a+Number(x.total_amount||0),0);
  if($('revenueToday'))$('revenueToday').textContent=money(sumFrom(dayStart));if($('revenueWeek'))$('revenueWeek').textContent=money(sumFrom(weekStart));if($('revenueMonth'))$('revenueMonth').textContent=money(sumFrom(monthStart));
  $('invoiceRows').innerHTML=list.map(x=>`<tr><td><b>${esc(x.invoice_number)}</b></td><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.customer_name||'Walk-in')}</td><td>${money(x.total_amount)}</td><td>${money(x.paid_amount)}</td><td>${money(x.balance_due)}</td><td><span class="status-pill ${esc(x.payment_status)}">${esc(x.payment_status)}</span></td><td><div class="actions"><button type="button" class="secondary" data-open-invoice="${x.id}">Open</button><button type="button" data-print-invoice="${x.id}">Reprint</button></div></td></tr>`).join('')||'<tr><td colspan="8">No invoices yet.</td></tr>';
  $('invoiceRows').querySelectorAll('[data-open-invoice]').forEach(b=>b.onclick=()=>openSavedInvoice(b.dataset.openInvoice,false));
  $('invoiceRows').querySelectorAll('[data-print-invoice]').forEach(b=>b.onclick=()=>openSavedInvoice(b.dataset.printInvoice,true));
 }
+async function loadOfflineInvoices(){
+ const server=await cachedSnapshot('invoices',[]);const local=await cachedSnapshot('localInvoices',[]);const pending=(await offlineAll('pending')).filter(x=>x.status==='pending'||x.status==='conflict');
+ const list=[...pending.map(x=>x.status==='conflict'?{...x.invoice,payment_status:'sync_conflict'}:x.invoice),...local.filter(x=>!x.synced&&!pending.some(p=>p.client_sale_id===x.invoice.id)).map(x=>x.invoice),...server];
+ const now=new Date(),dayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()),weekStart=new Date(dayStart);weekStart.setDate(weekStart.getDate()-((weekStart.getDay()+6)%7));const monthStart=new Date(now.getFullYear(),now.getMonth(),1);const sumFrom=start=>list.filter(x=>new Date(x.created_at)>=start).reduce((a,x)=>a+Number(x.total_amount||0),0);
+ if($('revenueToday'))$('revenueToday').textContent=money(sumFrom(dayStart));if($('revenueWeek'))$('revenueWeek').textContent=money(sumFrom(weekStart));if($('revenueMonth'))$('revenueMonth').textContent=money(sumFrom(monthStart));
+ $('invoiceRows').innerHTML=list.map(x=>`<tr><td><b>${esc(x.invoice_number)}</b></td><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.customer_name||'Walk-in')}</td><td>${money(x.total_amount)}</td><td>${money(x.paid_amount)}</td><td>${money(x.balance_due)}</td><td><span class="status-pill ${esc(x.payment_status)}">${esc(x.payment_status==='pending_sync'?'PENDING SYNC':x.payment_status)}</span></td><td><div class="actions"><button type="button" class="secondary" data-open-invoice="${x.id}">Open</button><button type="button" data-print-invoice="${x.id}">Reprint</button></div></td></tr>`).join('')||'<tr><td colspan="8">No invoices cached on this device.</td></tr>';
+ $('invoiceRows').querySelectorAll('[data-open-invoice]').forEach(b=>b.onclick=()=>openSavedInvoice(b.dataset.openInvoice,false));$('invoiceRows').querySelectorAll('[data-print-invoice]').forEach(b=>b.onclick=()=>openSavedInvoice(b.dataset.printInvoice,true));
+}
+async function syncPendingSales(){
+ if(!navigator.onLine||!db||offlineSyncRunning)return;offlineSyncRunning=true;
+ try{
+  const queue=(await offlineAll('pending')).filter(x=>x.status==='pending');
+  for(const sale of queue){
+   try{
+    const {data,error}=await db.rpc('sync_offline_sale',{p_client_sale_id:sale.client_sale_id,p_qr_codes:sale.qr_codes,p_customer_name:sale.customer_name,p_customer_phone:sale.customer_phone,p_payments:sale.payments,p_voucher_code:null});
+    if(error)throw error;
+    const invoiceId=data?.invoice_id||data?.id;
+    if(invoiceId){const upd=await db.from('invoices').update({cash_received:sale.cash_received,change_returned:sale.change_returned}).eq('id',invoiceId);if(upd.error)console.warn('Cash/change sync warning',upd.error.message)}
+    const fresh=invoiceId?await db.from('invoices').select('id,invoice_number,customer_name,customer_phone,total_amount,paid_amount,balance_due,cash_received,change_returned,payment_status,created_at').eq('id',invoiceId).maybeSingle():{data:null};
+    const stored={...sale,status:'synced',server_result:data,synced_at:new Date().toISOString(),server_invoice:fresh.data||null};await offlinePut('pending','',stored);
+    const locals=await cachedSnapshot('localInvoices',[]);const idx=locals.findIndex(x=>x.invoice.id===sale.client_sale_id);if(idx>=0){locals[idx].synced=true;locals[idx].serverInvoice=fresh.data||data;if(fresh.data)locals[idx].invoice=fresh.data;await cacheSnapshot('localInvoices',locals)}
+   }catch(e){
+    const message=e.message||String(e);const conflict=/sold|not in stock|in_stock|stock.*(changed|available)|qr.*(invalid|not found)|already/i.test(message);
+    await offlinePut('pending','',{...sale,status:conflict?'conflict':'pending',last_error:message,last_attempt:new Date().toISOString()});
+    if(conflict)console.error('Offline sale stock conflict:',sale.client_sale_id,message);else console.warn('Offline sale sync will retry:',message);
+   }
+  }
+  await loadInvoices();
+  if(queue.length)billingMessage('Offline sync check complete. Pending / conflict status invoice history mein dekhein.',false);
+ }catch(e){console.warn('Offline sync queue error',e)}finally{offlineSyncRunning=false}
+}
+window.addEventListener('online',()=>{forceOfflineMode=false;const el=$('networkStatus');if(el){el.textContent='ONLINE';el.style.background='#eaf8ef';el.style.color='#176b37'}setTimeout(async()=>{if(db){await syncPendingSales();await load()}},1200)});
+
 async function openSavedInvoice(invoiceId,shouldPrint){
  const printWindow=shouldPrint?window.open('','_blank','width=420,height=720'):null;
  if(shouldPrint&&!printWindow){billingMessage('Reprint window block ho gayi. Chrome mein pop-ups allow karein.',true);return}
  try{
+  const local=await cachedSnapshot('localInvoices',[]);const found=local.find(x=>x.invoice.id===invoiceId);
+  if(found){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='billing'));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!=='billing'));const displayInv=found.serverInvoice&&found.synced?found.serverInvoice:found.invoice;renderInvoice(displayInv,found.items,found.payments);if(shouldPrint)setTimeout(()=>printInvoice(displayInv,found.items,found.payments,printWindow),250);else $('invoicePreview').scrollIntoView({behavior:'smooth',block:'start'});return;}
+  if(offlineMode()){
+   const server=await cachedSnapshot('invoices',[]);const inv=server.find(x=>x.id===invoiceId);if(!inv)throw new Error('Invoice is not available in this offline cache.');
+   const details=await cachedSnapshot('invoiceDetails',{});const d=details[invoiceId];if(!d)throw new Error('Invoice items offline cache mein available nahi. App ko online open karke invoice history load karein.');
+   renderInvoice(inv,d.items||[],d.payments||[]);if(shouldPrint)setTimeout(()=>printInvoice(inv,d.items||[],d.payments||[],printWindow),250);else $('invoicePreview').scrollIntoView({behavior:'smooth',block:'start'});return;
+  }
   const [ir,itemsR,payR]=await Promise.all([
    db.from('invoices').select('id,invoice_number,customer_name,customer_phone,total_amount,paid_amount,balance_due,cash_received,change_returned,payment_status,created_at').eq('id',invoiceId).maybeSingle(),
    db.from('invoice_items').select('product_name,size,qr_code,unit_price,line_total,product_id,products(category,color)').eq('invoice_id',invoiceId).order('id'),
@@ -548,6 +664,7 @@ $('checkout').onclick=async()=>{
  if(!cart.length){billingMessage('Checkout se pehle Billing scanner se garments cart mein add karein.',true);return}
  const total=cart.reduce((a,x)=>a+Number(x.price||0),0);if(cart.some(x=>x.price==null||!Number.isFinite(Number(x.price)))){billingMessage('Cart mein kisi design ki price missing hai.',true);return}
  const voucherCode=$('billVoucherCode').value.trim();let voucherBalance=0,creditUsed=0;
+ if(offlineMode()&&voucherCode){billingMessage('Offline sale mein voucher use nahi ho sakta. Voucher ke liye internet zaroori hai.',true);return}
  if(voucherCode){
   const {data:v,error:ve}=await db.from('store_credit_vouchers').select('remaining_amount,status,expires_at').eq('voucher_code',voucherCode).maybeSingle();
   if(ve){billingMessage('Voucher verify nahi ho saka: '+ve.message,true);return}
@@ -557,14 +674,14 @@ $('checkout').onclick=async()=>{
   voucherBalance=Number(v.remaining_amount||0);if(voucherBalance<=0){billingMessage('Voucher mein remaining credit nahi.',true);return}
   creditUsed=Math.min(total,voucherBalance);
  }
- const payments=[];for(const row of $('paymentRows').querySelectorAll('.payment-row')){const method=row.querySelector('.pay-method').value;const raw=row.querySelector('.pay-amount').value.trim();if(raw==='')continue;const amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){billingMessage('Payment amount zero se zyada hona chahiye.',true);return}payments.push({method,amount:Number(amount.toFixed(2))})}
+ const payments=[];for(const row of $('paymentRows').querySelectorAll('.payment-row')){const method=row.querySelector('.pay-method').value;const raw=row.querySelector('.pay-amount').value.trim();if(raw==='')continue;const amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){billingMessage('Payment amount zero se zyada hona chahiye.',true);return}if(offlineMode()&&method==='online'){billingMessage('Offline mode mein Online payment verify nahi ho sakti. Sirf received Cash/Card payment enter karein.',true);return}payments.push({method,amount:Number(amount.toFixed(2))})}
  const paid=payments.reduce((a,x)=>a+x.amount,0);if(paid+creditUsed>total+0.001){billingMessage('Cash/card/online + voucher credit invoice total se zyada nahi ho sakta.',true);return}
  const cashApplied=payments.filter(x=>x.method==='cash').reduce((a,x)=>a+x.amount,0);
  const rawReceived=$('cashReceived').value.trim();const cashReceived=rawReceived===''?cashApplied:Number(rawReceived);
  if(!Number.isFinite(cashReceived)||cashReceived<0){billingMessage('Cash received ki amount valid enter karein.',true);return}
  if(cashReceived+0.001<cashApplied){billingMessage('Cash Received, Cash payment amount se kam nahi ho sakta.',true);return}
  const changeReturned=Math.max(0,Number((cashReceived-cashApplied).toFixed(2)));
- pendingCheckout={total,creditUsed,payments,cashReceived:Number(cashReceived.toFixed(2)),changeReturned,voucherCode,customerName:$('customerName').value.trim()||null,customerPhone:$('customerPhone').value.trim()||null,qrCodes:cart.map(x=>x.qr_code),items:cart.map(x=>({product_name:x.product_name,category:x.category||'Other',color:x.color||'',size:x.size,qr_code:x.qr_code,unit_price:Number(x.price),line_total:Number(x.price)}))};
+ pendingCheckout={total,creditUsed,payments,cashReceived:Number(cashReceived.toFixed(2)),changeReturned,voucherCode,customerName:$('customerName').value.trim()||null,customerPhone:$('customerPhone').value.trim()||null,qrCodes:cart.map(x=>x.qr_code),items:cart.map(x=>({product_id:x.product_id,product_name:x.product_name,category:x.category||'Other',color:x.color||'',size:x.size,qr_code:x.qr_code,unit_price:Number(x.price),line_total:Number(x.price)}))};
  const previewPayments=payments.map(x=>`<div class="cart-total"><span>${esc(x.method.toUpperCase())}</span><span>${money(x.amount)}</span></div>`).join('')||'<div class="cart-total"><span>Payments</span><span>None</span></div>';
  $('saleConfirmPreview').innerHTML=`<div class="sale-confirm"><h3>Confirm Sale Preview</h3><p class="muted">Abhi invoice save nahi hui aur stock deduct nahi hua. Confirm karne ke baad sale complete hogi.</p><div class="cart-total"><span>Customer</span><b>${esc(pendingCheckout.customerName||'Walk-in Customer')}</b></div><div class="cart-total"><span>Pieces</span><b>${cart.length}</b></div>${previewPayments}${creditUsed?`<div class="cart-total"><span>Voucher Credit</span><b>${money(creditUsed)}</b></div>`:''}<div class="cart-total"><span>Invoice Total</span><b>${money(total)}</b></div><div class="cart-total"><span>Paid</span><b>${money(paid+creditUsed)}</b></div><div class="cart-total"><span>Balance Due</span><b>${money(Math.max(0,total-paid-creditUsed))}</b></div><div class="cart-total"><span>Cash Received</span><b>${money(cashReceived)}</b></div><div class="cart-total"><span>Change Returned</span><b>${money(changeReturned)}</b></div><div class="actions" style="margin-top:14px"><button id="confirmSaveSale" type="button">Confirm & Save Sale</button><button id="cancelSalePreview" class="secondary" type="button">Cancel</button></div></div>`;
  $('confirmSaveSale').onclick=finalizeSale;
@@ -573,7 +690,20 @@ $('checkout').onclick=async()=>{
 };
 async function finalizeSale(){
  if(!pendingCheckout)return;
- const p=pendingCheckout;$('confirmSaveSale').disabled=true;$('cancelSalePreview').disabled=true;$('checkout').disabled=true;
+ const p=pendingCheckout;
+ if(offlineMode()){
+  try{
+   const clientSaleId=crypto.randomUUID();const now=new Date().toISOString();
+   const paid=p.payments.reduce((a,x)=>a+Number(x.amount||0),0);
+   const localInvoice={id:clientSaleId,invoice_number:'OFF-'+Date.now().toString(36).toUpperCase(),customer_name:p.customerName,customer_phone:p.customerPhone,total_amount:p.total,paid_amount:paid,balance_due:Math.max(0,Number((p.total-paid).toFixed(2))),cash_received:p.cashReceived,change_returned:p.changeReturned,payment_status:'pending_sync',created_at:now,offline_pending:true};
+   const pending={client_sale_id:clientSaleId,status:'pending',created_at:now,invoice:localInvoice,items:p.items,payments:p.payments,qr_codes:p.qrCodes,customer_name:p.customerName,customer_phone:p.customerPhone,cash_received:p.cashReceived,change_returned:p.changeReturned};
+   await saveOfflineSaleAndStock(pending,{invoice:localInvoice,items:p.items,payments:p.payments,synced:false});
+   renderInvoice(localInvoice,p.items,p.payments);cart=[];renderCart();$('customerName').value='';$('customerPhone').value='';$('billVoucherCode').value='';$('cashReceived').value='';$('paymentRows').innerHTML='';addPaymentRow('cash','');$('saleConfirmPreview').innerHTML='';pendingCheckout=null;
+   billingMessage('OFFLINE SALE DEVICE PAR SAVE HO GAYI. Invoice provisional hai aur stock server par abhi deduct nahi hua. Internet aate hi sync hogi. Is QR ko doosre device par sell na karein.',true);await load();
+  }catch(e){billingMessage('Offline sale local device par save nahi hui: '+(e.message||e),true);$('confirmSaveSale').disabled=false;$('cancelSalePreview').disabled=false;}
+  return;
+ }
+ $('confirmSaveSale').disabled=true;$('cancelSalePreview').disabled=true;$('checkout').disabled=true;$('confirmSaveSale').disabled=true;$('cancelSalePreview').disabled=true;$('checkout').disabled=true;
  billingMessage('Sale save ho rahi hai aur stock update ho raha hai…');
  const basePayload={p_qr_codes:p.qrCodes,p_customer_name:p.customerName,p_customer_phone:p.customerPhone,p_payments:p.payments};
  const payload=p.voucherCode?{...basePayload,p_voucher_code:p.voucherCode}:basePayload;
