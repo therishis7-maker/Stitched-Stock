@@ -32,7 +32,15 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 .sidebar-foot{padding:17px 8px}.foot-brand{font-weight:800;font-size:13px;letter-spacing:.3px}.foot-sub{margin:3px 0 14px;font-size:12px;color:#c5d4ed}.quick-link{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;margin:5px 0;background:#17396c;color:#eaf2ff;padding:10px 12px;border-radius:12px;font-weight:600;font-size:12px}.quick-link:hover{background:#2456a3;transform:none}.support-link{border-top:1px solid #ffffff26;margin-top:15px;padding:15px 3px 0;font-weight:700;font-size:12px}.support-link span{font-weight:400;color:#c5d4ed}.admin-wrap{position:relative}.admin-toggle{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #dce7f8}.admin-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:210px;background:white;border:1px solid var(--line);border-radius:13px;padding:8px;box-shadow:0 12px 32px #132b4a25;z-index:30}.admin-menu button{display:block;width:100%;text-align:left;background:transparent;color:#203858;padding:11px 12px;font-weight:600}.admin-menu button:hover{background:#f0f5ff;transform:none}.menu-divider{border-top:1px solid var(--line);margin:5px 0}.admin-menu .logout-menu{color:#b42332}.modal-backdrop{position:fixed;inset:0;background:#071a3a70;display:flex;align-items:center;justify-content:center;padding:18px;z-index:50}.admin-modal{width:min(440px,100%);max-height:90vh;overflow:auto}.admin-modal label{margin-top:10px}.admin-modal p{margin:8px 0}.modal-backdrop.hidden{display:none!important}
 @media(max-width:800px){.mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:800px){.wrap{padding:15px}.app-shell{grid-template-columns:1fr;gap:15px}.sidebar{min-height:0;position:static;padding:14px}.brand{padding:4px 7px 12px}.tabs{flex-direction:row;overflow:auto}.tabs button{white-space:nowrap;padding:11px}.sidebar-foot{display:block}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:15px}.stat b{font-size:26px}.panel{padding:16px}}
-@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%}.qr-label{display:inline-block;width:180px;margin:5px}}
+@media print{
+  @page{size:A4;margin:10mm}
+  body *{visibility:hidden}
+  .print-area,.print-area *{visibility:visible}
+  .print-area{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:7mm;position:absolute;left:0;top:0;width:100%;padding:0}
+  .qr-label{display:block;width:auto;margin:0;padding:4mm;border:1px solid #333;border-radius:2mm;break-inside:avoid;page-break-inside:avoid}
+  .qr-label canvas,.qr-label img{width:30mm!important;height:30mm!important;max-width:30mm!important;max-height:30mm!important;image-rendering:pixelated}
+  .label-brand{font-size:12pt}.label-price{font-size:15pt}.qr-code-text{font-size:7pt}
+}
 @media(max-width:480px){.row,.form-grid{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbar .right{flex-direction:column;align-items:flex-end}.grid{gap:8px}.stat b{font-size:23px}}
 </style></head><body>
 <div id="auth" class="wrap auth panel">
@@ -111,7 +119,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <h2 style="margin-top:22px">Store Credit Voucher <span class="muted">(optional)</span></h2>
     <label>Voucher Code</label><input id="billVoucherCode" autocomplete="off" placeholder="e.g. SC-XXXXXXXXXXXX">
     <div id="voucherPreviewMsg" class="notice hidden"></div>
-    <h2 style="margin-top:22px">Payment</h2><p class="muted">Cash, Card aur Online mix kar sakte hain. Amount blank chhorne par payment add nahi hogi. Zero payment ka matlab unpaid invoice.</p>
+    <h2 style="margin-top:22px">Payment</h2><p class="muted">Pehli payment ki amount invoice total se automatically fill hogi. Partial ya split payment ke liye amount edit karein ya another payment add karein. Cash, Card aur Online mix kar sakte hain.</p>
     <div id="paymentRows"></div><button id="addPayment" class="secondary" type="button">＋ Add another payment</button>
     <label for="cashReceived">Cash Received from Customer (Rs.)</label><input id="cashReceived" type="number" min="0" step="0.01" placeholder="Cash customer hands over (optional)"><p class="muted">Payment rows mein Cash Amount invoice par apply hone wali cash amount hai. Yahan customer ka diya hua total cash likhein; extra amount change hoga.</p>
     <div class="actions" style="margin-top:18px"><button id="checkout" type="button">Complete Sale & Generate Invoice</button><button id="clearCart" class="secondary" type="button">Clear Cart</button></div>
@@ -281,7 +289,7 @@ $('save').onclick=async()=>{
    const details=document.createElement('div');details.textContent='Size: '+size+' · Colour: '+(design.color||'—');
    const txt=document.createElement('div');txt.className='qr-code-text';txt.textContent=code;
    card.append(brand,title,category,qr,priceEl,details,txt);$('labelArea').append(card);
-   try{new QRCode(qr,{text:code,width:120,height:120});if(!qr.querySelector('canvas,img'))qrRenderFailed=true}catch(e){qrRenderFailed=true}
+   try{new QRCode(qr,{text:code,width:300,height:300});if(!qr.querySelector('canvas,img'))qrRenderFailed=true}catch(e){qrRenderFailed=true}
   });
   $('batchSummary').textContent=`${batchCodes.length} QR labels generated for ${productName}, size ${size}.`;
   show('batchResult');$('qty').value='';$('note').value='';
@@ -347,6 +355,7 @@ function renderCart(){
  $('cartTotal').textContent=money(total);$('checkoutTotal').textContent=money(total);
  $('cartRows').innerHTML=cart.map(x=>`<tr><td>${esc(x.category||'Other')}</td><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.color||'—')}</td><td>${esc(x.qr_code)}</td><td>${money(x.price)}</td><td><button class="secondary" data-remove-qr="${esc(x.qr_code)}" type="button">Remove</button></td></tr>`).join('')||'<tr><td colspan="7">Cart is empty. Billing mein garment QR scan karein.</td></tr>'; 
  $('cartRows').querySelectorAll('[data-remove-qr]').forEach(b=>b.onclick=()=>{cart=cart.filter(x=>x.qr_code!==b.dataset.removeQr);renderCart()});
+ syncAutoPaymentAmount();
 }
 function addBillingItemToCart(data){
  if(!data||cart.some(x=>x.qr_code===data.qr_code))return false;
@@ -425,11 +434,17 @@ $('billingScanInput').addEventListener('keydown',e=>{
  }
 });
 
-function addPaymentRow(method='cash',amount=''){
+function addPaymentRow(method='cash',amount='',autoFill=false){
  const row=document.createElement('div');row.className='payment-row';
  const methodWrap=document.createElement('div');const methodLabel=document.createElement('label');methodLabel.textContent='Payment Method';const select=document.createElement('select');select.className='pay-method';[['cash','Cash'],['card','Card'],['online','Online']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=method;methodWrap.append(methodLabel,select);
- const amountWrap=document.createElement('div');const amountLabel=document.createElement('label');amountLabel.textContent='Amount (Rs.)';const input=document.createElement('input');input.className='pay-amount';input.type='number';input.min='0';input.step='0.01';input.placeholder='e.g. 1000';input.value=amount;amountWrap.append(amountLabel,input);
+ const amountWrap=document.createElement('div');const amountLabel=document.createElement('label');amountLabel.textContent='Amount (Rs.)';const input=document.createElement('input');input.className='pay-amount';input.type='number';input.min='0';input.step='0.01';input.placeholder='Auto-filled from invoice total';input.value=amount;input.dataset.autoAmount=autoFill?'true':'false';input.addEventListener('input',()=>{input.dataset.autoAmount='false'});amountWrap.append(amountLabel,input);
  const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Remove';remove.onclick=()=>{row.remove()};row.append(methodWrap,amountWrap,remove);$('paymentRows').append(row);
+}
+function syncAutoPaymentAmount(amountOverride){
+ const input=[...$('paymentRows').querySelectorAll('.payment-row')].map(row=>row.querySelector('.pay-amount')).find(el=>el?.dataset.autoAmount==='true');
+ if(!input)return;
+ const amount=amountOverride===undefined?cart.reduce((sum,item)=>sum+Number(item.price||0),0):Number(amountOverride||0);
+ input.value=amount>0?amount.toFixed(2):'';
 }
 $('addPayment').onclick=()=>addPaymentRow('cash','');
 $('clearCart').onclick=()=>{cart=[];renderCart();$('billVoucherCode').value='';$('cashReceived').value='';$('saleConfirmPreview').innerHTML='';pendingCheckout=null;billingMessage('Cart clear kar diya gaya.');};
@@ -449,7 +464,7 @@ function downloadInvoicePdf(inv,items,payments){
  if(!JsPDF){billingMessage('PDF library load nahi hui. Print Invoice par click karke printer mein Save as PDF select karein.',true);return}
  const doc=new JsPDF({unit:'mm',format:'a4'});let y=18;
  const line=(txt,size=10,bold=false)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);const lines=doc.splitTextToSize(String(txt),180);if(y+lines.length*6>280){doc.addPage();y=18}doc.text(lines,15,y);y+=lines.length*6};
- line('ZANIS',22,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date().toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
+ line('ZANIS',22,true);line('SALES INVOICE',12,true);line('Invoice: '+inv.invoice_number);line('Date: '+new Date(inv.created_at||Date.now()).toLocaleString());line('Customer: '+(inv.customer_name||'Walk-in Customer'));line('Phone: '+(inv.customer_phone||'—'));y+=4;line('ITEMS',12,true);
  items.forEach((x,i)=>line(`${i+1}. ${x.product_name} | Size ${x.size} | QR ${x.qr_code} | ${money(x.unit_price??x.price)}`));
  y+=4;line('PAYMENTS',12,true);if(payments.length)payments.forEach(x=>line(`${String(x.method||x.payment_method||'').toUpperCase()}: ${money(x.amount)}`));else line('No payment received');
  y+=4;line('Total: '+money(inv.total_amount),12,true);line('Paid: '+money(inv.paid_amount));line('Balance Due: '+money(inv.balance_due),12,true);line('Cash Received: '+money(inv.cash_received));line('Change Returned: '+money(inv.change_returned));line('Payment Status: '+String(inv.payment_status).toUpperCase());y+=8;line('Thank you for shopping with ZANIS!');y+=5;line('EXCHANGE POLICY: Items can be exchanged within 3 days of purchase. No refunds. Original invoice is required for exchange.',9,false);
@@ -462,9 +477,10 @@ function printInvoice(inv,items,payments,existingWindow){
  const paymentRows=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'Payment').toUpperCase())}</td><td class="amount">${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td class="amount">Unpaid</td></tr>';
  const status=String(inv.payment_status||'unpaid').toUpperCase();
  const receipt=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZANIS - ${esc(inv.invoice_number||'Invoice')}</title><style>
- @page{size:80mm auto;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:80mm;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
- .receipt{width:72mm;margin:0 auto;padding:2mm 1mm}.brand{text-align:center;font-size:25px;font-weight:900;letter-spacing:3px;margin:2mm 0 1mm}.subtitle{text-align:center;font-size:11px;font-weight:bold;margin-bottom:3mm}.rule{border-top:1px dashed #000;margin:2.5mm 0}.meta{display:flex;justify-content:space-between;gap:4px;margin:1.5mm 0}.meta span:first-child{font-weight:bold}.customer{margin:2mm 0;line-height:1.5}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:2mm 0}td{padding:2mm 0;vertical-align:top;border-bottom:1px dotted #aaa;overflow-wrap:anywhere}.item{width:68%}.amount{width:32%;text-align:right;white-space:nowrap;font-weight:bold}.item small{display:block;font-size:9px;margin-top:1mm}.pay-title{font-weight:bold;margin-top:2mm}.total-line{display:flex;justify-content:space-between;padding:1.5mm 0;font-size:11px}.grand{font-weight:900;font-size:14px;border-top:1px solid #000;margin-top:1mm;padding-top:2mm}.footer{text-align:center;line-height:1.5;margin:4mm 0 2mm;font-size:10px}.policy{font-size:8px;line-height:1.35;text-align:left;margin-top:3mm}
+ @page{size:80mm auto;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:80mm;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .receipt{width:74mm;margin:0 auto;padding:2mm 1mm}.brand{text-align:center;font-size:27px;font-weight:900;letter-spacing:3px;margin:2mm 0 1mm}.subtitle{text-align:center;font-size:12px;font-weight:bold;margin-bottom:3mm}.rule{border-top:1px dashed #000;margin:2.5mm 0}.meta{display:flex;justify-content:space-between;gap:4px;margin:1.5mm 0}.meta span:first-child{font-weight:bold}.customer{margin:2mm 0;line-height:1.5}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:2mm 0}td{padding:1.6mm 0;vertical-align:top;border-bottom:1px dotted #888;overflow-wrap:anywhere}.item{width:68%}.amount{width:32%;text-align:right;white-space:nowrap;font-weight:bold}.item small{display:block;font-size:10px;line-height:1.3;margin-top:1mm}.pay-title{font-weight:bold;margin-top:2mm}.total-line{display:flex;justify-content:space-between;gap:5px;padding:1.5mm 0;font-size:12px}.grand{font-weight:900;font-size:15px;border-top:1px solid #000;margin-top:1mm;padding-top:2mm}.footer{text-align:center;line-height:1.5;margin:4mm 0 2mm;font-size:11px}.policy{font-size:9px;line-height:1.4;text-align:left;margin-top:3mm}
  @media screen{body{width:auto;padding:8px;background:#eee}.receipt{background:#fff;padding:5mm;box-shadow:0 1px 8px #0002}}
+  @media print{html,body{width:80mm!important;margin:0!important;padding:0!important}.receipt{width:74mm;margin:0 auto;padding:2mm 1mm;box-shadow:none}tr{break-inside:avoid;page-break-inside:avoid}}
  </style></head><body><main class="receipt"><div class="brand">ZANIS</div><div class="subtitle">SALES INVOICE</div><div class="rule"></div>
  <div class="meta"><span>Invoice:</span><span>${esc(inv.invoice_number||'—')}</span></div><div class="meta"><span>Date:</span><span>${esc(new Date(inv.created_at||Date.now()).toLocaleString())}</span></div>
  <div class="customer"><b>Customer:</b> ${esc(inv.customer_name||'Walk-in Customer')}<br><b>Phone:</b> ${esc(inv.customer_phone||'—')}</div><div class="rule"></div>
@@ -524,6 +540,7 @@ $('checkout').onclick=async()=>{
   voucherBalance=Number(v.remaining_amount||0);if(voucherBalance<=0){billingMessage('Voucher mein remaining credit nahi.',true);return}
   creditUsed=Math.min(total,voucherBalance);
  }
+ syncAutoPaymentAmount(Math.max(0,total-creditUsed));
  const payments=[];for(const row of $('paymentRows').querySelectorAll('.payment-row')){const method=row.querySelector('.pay-method').value;const raw=row.querySelector('.pay-amount').value.trim();if(raw==='')continue;const amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){billingMessage('Payment amount zero se zyada hona chahiye.',true);return}payments.push({method,amount:Number(amount.toFixed(2))})}
  const paid=payments.reduce((a,x)=>a+x.amount,0);if(paid+creditUsed>total+0.001){billingMessage('Cash/card/online + voucher credit invoice total se zyada nahi ho sakta.',true);return}
  const cashApplied=payments.filter(x=>x.method==='cash').reduce((a,x)=>a+x.amount,0);
@@ -555,12 +572,12 @@ async function finalizeSale(){
   }else saveWarning=' Invoice ID return nahi hui; cash details is invoice ke record mein save nahi ho sakin.';
   const inv={...data,customer_name:p.customerName,customer_phone:p.customerPhone,cash_received:p.cashReceived,change_returned:p.changeReturned};
   const displayPayments=p.payments.slice();if(data.voucher_credit_used>0)displayPayments.unshift({method:'store credit voucher',amount:data.voucher_credit_used});
-  renderInvoice(inv,p.items,displayPayments);cart=[];renderCart();$('customerName').value='';$('customerPhone').value='';$('billVoucherCode').value='';$('cashReceived').value='';$('paymentRows').innerHTML='';addPaymentRow('cash','');$('saleConfirmPreview').innerHTML='';pendingCheckout=null;
+  renderInvoice(inv,p.items,displayPayments);cart=[];renderCart();$('customerName').value='';$('customerPhone').value='';$('billVoucherCode').value='';$('cashReceived').value='';$('paymentRows').innerHTML='';addPaymentRow('cash','',true);$('saleConfirmPreview').innerHTML='';pendingCheckout=null;
   billingMessage('Invoice successfully create ho gaya. Stock deduct aur voucher update ho gaya.'+saveWarning,!!saveWarning);await load();await loadInvoices();await loadBillingSkuList();
  }catch(e){billingMessage('Sale complete nahi hui: '+(e.message||e),true);$('confirmSaveSale').disabled=false;$('cancelSalePreview').disabled=false;}
  finally{$('checkout').disabled=false;}
 }
-addPaymentRow('cash','');renderCart();
+addPaymentRow('cash','',true);renderCart();
 
 function cameraErrorText(err){
   if(err && typeof err==='object'){
