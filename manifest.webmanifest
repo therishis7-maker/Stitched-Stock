@@ -1,0 +1,9 @@
+{
+  "name": "Sale Central",
+  "short_name": "Sale Central",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fc",
+  "theme_color": "#102b59"
+}
