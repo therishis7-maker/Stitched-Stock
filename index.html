@@ -583,11 +583,20 @@ function printInvoice(inv,items,payments,existingWindow){
  try{
   w.document.open();w.document.write(receipt);w.document.close();
   const triggerPrint=()=>{if(w.closed)return;try{w.focus();w.print()}catch(e){billingMessage('Print start nahi ho saka: '+(e.message||e),true)}};
-  // Wait for the print page to finish loading and rendering before invoking print.
-  if(w.document.readyState==='complete'){
-   const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();
-   fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));
-  }else w.onload=()=>{const fontsReady=w.document.fonts&&w.document.fonts.ready?w.document.fonts.ready:Promise.resolve();fontsReady.then(()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,350))));};
+  // This receipt uses only system fonts and no external images. Do not wait
+  // indefinitely for document.fonts.ready: some mobile browsers can stall it.
+  // Wait only for layout to paint, then open the print dialog promptly.
+  let printScheduled=false;
+  const schedulePrint=()=>{
+   if(printScheduled||w.closed)return;
+   printScheduled=true;
+   const paint=()=>w.requestAnimationFrame(()=>w.requestAnimationFrame(()=>setTimeout(triggerPrint,120)));
+   if(typeof w.requestAnimationFrame==='function')paint();else setTimeout(triggerPrint,250);
+  };
+  if(w.document.readyState==='complete'||w.document.readyState==='interactive')schedulePrint();
+  else w.addEventListener('load',schedulePrint,{once:true});
+  // Safety fallback in case a browser does not dispatch load after document.write().
+  setTimeout(schedulePrint,900);
  }catch(e){billingMessage('Invoice print page tayar nahi hui: '+(e.message||e),true)}
 }
 async function loadInvoices(){
@@ -689,6 +698,21 @@ async function openSavedInvoice(invoiceId,shouldPrint){
  try{
   const local=await cachedSnapshot('localInvoices',[]);const found=local.find(x=>x.invoice.id===invoiceId);
   if(found){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='billing'));['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!=='billing'));const displayInv=found.serverInvoice&&found.synced?found.serverInvoice:found.invoice;renderInvoice(displayInv,found.items,found.payments);if(shouldPrint)setTimeout(()=>printInvoice(displayInv,found.items,found.payments,printWindow),250);else $('invoicePreview').scrollIntoView({behavior:'smooth',block:'start'});return;}
+  // Reuse the invoice details already cached by loadInvoices(). This avoids
+  // three extra network round-trips every time a previously loaded invoice is reprinted.
+  if(!offlineMode()){
+   const [cachedInvoices,cachedDetails]=await Promise.all([cachedSnapshot('invoices',[]),cachedSnapshot('invoiceDetails',{})]);
+   const cachedInvoice=cachedInvoices.find(x=>x.id===invoiceId);
+   const cachedDetail=cachedDetails[invoiceId];
+   if(cachedInvoice&&cachedDetail){
+    document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='billing'));
+    ['stock','entry','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!=='billing'));
+    renderInvoice(cachedInvoice,cachedDetail.items||[],cachedDetail.payments||[]);
+    if(shouldPrint)printInvoice(cachedInvoice,cachedDetail.items||[],cachedDetail.payments||[],printWindow);
+    else $('invoicePreview').scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+   }
+  }
   if(offlineMode()){
    const server=await cachedSnapshot('invoices',[]);const inv=server.find(x=>x.id===invoiceId);if(!inv)throw new Error('Invoice is not available in this offline cache.');
    const details=await cachedSnapshot('invoiceDetails',{});const d=details[invoiceId];if(!d)throw new Error('Invoice items offline cache mein available nahi. App ko online open karke invoice history load karein.');
