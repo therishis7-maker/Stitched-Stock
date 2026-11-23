@@ -96,12 +96,14 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
   <section id="remove" class="panel hidden">
     <h2>Remove Stock</h2><p class="muted">Sirf select kiya hua product, size aur quantity remove hogi. Yeh action online confirmation ke saath hoga aur History mein record banega.</p>
     <div class="form-grid"><div><label>Product / Design</label><select id="removeProduct"><option value="">Product select karein</option></select></div><div><label>Size</label><select id="removeSize"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></div></div>
-    <div class="mini-grid"><div class="mini-stat"><span>Selected Size — Available</span><b id="removeAvailable">0</b></div><div class="mini-stat"><span>After Removal</span><b id="removeAfter">0</b></div></div>
-    <label>Remove Quantity (pieces)</label><input id="removeQty" type="number" min="1" step="1" placeholder="Kitne pieces remove karne hain">
+    <div class="mini-grid"><div class="mini-stat"><span>Selected Size — Available</span><b id="removeAvailable">0</b></div><div class="mini-stat"><span>Selected for Removal</span><b id="removeSelectedCount">0</b></div></div>
+    <div class="sku-list"><div class="sku-list-head"><div><b>Specific SKU / QR Selection</b><div class="sku-count" id="removeQrSummary">Product aur size select karein</div></div><button type="button" class="secondary" id="toggleRemoveQrList">Show QR List</button></div>
+      <div id="removeQrListWrap" class="sku-list-content hidden"><input id="removeQrSearch" class="sku-search" placeholder="SKU / QR code search karein…" autocomplete="off"><div class="actions" style="margin:6px 0 10px"><button type="button" class="secondary" id="selectFilteredRemoveQrs">Select visible</button><button type="button" class="secondary" id="clearRemoveQrs">Clear selection</button></div><div id="removeQrList" class="tablewrap"><div class="muted">Product aur size select karne par QR list load hogi.</div></div></div>
+    </div>
     <label>Reason</label><select id="removeReason"><option value="Wrong Entry">Wrong Entry</option><option value="Dummy Stock">Dummy Stock</option><option value="Damaged">Damaged</option><option value="Other">Other</option></select>
     <label>Note (optional)</label><input id="removeNote" maxlength="200" placeholder="Additional detail / reference">
-    <div class="notice error">Stock removal permanent inventory change hai. Confirm karne se pehle product, size aur quantity check karein. QR records bhi backend transaction mein update hone chahiye.</div>
-    <button id="removeConfirm" type="button" style="margin-top:8px">Confirm Remove Stock</button><div id="removeMsg" class="notice hidden" aria-live="polite"></div>
+    <div class="notice error">Stock removal permanent hai. Confirm karne se pehle selected SKU/QR list, product aur size verify karein. Sirf selected QR codes remove honge aur History mein unki list record hogi.</div>
+    <button id="removeConfirm" type="button" style="margin-top:8px">Confirm Remove Selected Stock</button><div id="removeMsg" class="notice hidden" aria-live="polite"></div>
   </section>
   <section id="sales" class="panel hidden">
     <div class="section-head"><div><h2>Sales Overview</h2><span class="muted">Confirmed QR sales (quantity only)</span></div><button class="secondary" id="salesRefresh">↻ Refresh</button></div>
@@ -301,8 +303,9 @@ async function load(){
  if(h.error){if(!navigator.onLine||isNetworkFailure(h.error)){markOfflineMode();await loadOfflineDashboard();return}msg('msg',h.error.message,true);return}movements=h.data||[];await cacheSnapshot('movements',movements);
  renderHistoryAndSales();await loadSizes();await loadInvoices();
 }
+function formatMovementNote(x){if(x.movement_type!=='REMOVE'||!x.note)return esc(x.note||'');try{const n=JSON.parse(x.note);if(!n||!Array.isArray(n.removed_qr_codes))return esc(x.note);const qrs=n.removed_qr_codes;const reason=esc(n.reason||'—'),extra=n.note?`<div style="margin-top:4px">Note: ${esc(n.note)}</div>`:'';const before=n.stock_before||{},after=n.stock_after||{};const stockLine=(before.total!=null&&after.total!=null)?`<div class="muted">Total stock: ${before.total} → ${after.total} · Size: ${before.size} → ${after.size}</div>`:'';return `<b>Reason:</b> ${reason}${extra}${stockLine}<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--blue);font-weight:700">View removed SKUs / QR (${qrs.length})</summary><div style="max-height:180px;overflow:auto;padding:8px;background:#f7faff;border-radius:8px">${qrs.map(code=>`<div class="sku-code">${esc(code)}</div>`).join('')}</div></details>`}catch(e){return esc(x.note)}}
 function renderHistoryAndSales(){
- $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':(x.movement_type==='REMOVE'?'Stock Removed':'Sale Out')}</td><td>${x.quantity}</td><td>${esc(x.note||'')}</td></tr>`).join('')||'<tr><td colspan="5">No history yet.</td></tr>';
+ $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':(x.movement_type==='REMOVE'?'Stock Removed':'Sale Out')}</td><td>${x.quantity}</td><td>${formatMovementNote(x)}</td></tr>`).join('')||'<tr><td colspan="5">No history yet.</td></tr>';
  const sold=movements.filter(x=>x.movement_type==='OUT').reduce((a,x)=>a+Number(x.quantity||0),0);const today=new Date().toDateString();const soldToday=movements.filter(x=>x.movement_type==='OUT'&&new Date(x.created_at).toDateString()===today).reduce((a,x)=>a+Number(x.quantity||0),0);
  $('soldTotal').textContent=sold;$('todaySold').textContent=soldToday;$('salesAll').textContent=sold;$('salesToday').textContent=soldToday;
 }
@@ -325,34 +328,32 @@ async function openStockDetails(productId){
  const sizes=r.data||[];const q=Number(p.quantity||0);
  openAdminModal('Complete Stock Details',`<p><b>Product:</b> ${esc(p.name)}</p><p><b>Category:</b> ${esc(p.category||'Other')}</p><p><b>Fabric / Name:</b> ${esc(p.fabric_name||'—')}</p><p><b>Colour:</b> ${esc(p.color||'—')}</p><p><b>Price:</b> ${money(p.price)}</p><p><b>Total Available:</b> ${q}</p><p><b>Status:</b> <span class="status-pill ${q>0?'':'unpaid'}">${q>0?'In Stock':'Out of Stock'}</span></p><h3>Size-wise Quantity</h3><div class="tablewrap"><table><thead><tr><th>Size</th><th>Quantity</th><th>Status</th></tr></thead><tbody>${['S','M','L','XL','XXL'].map(sz=>{const n=Number(sizes.find(x=>x.size===sz)?.quantity||0);return `<tr><td>${sz}</td><td>${n}</td><td>${n>0?'In Stock':'Out of Stock'}</td></tr>`}).join('')}</tbody></table></div>`);
 }
+let removeQrItems=[],removeQrSelected=new Set(),removeQrListOpen=false;
 async function loadRemoveStockForm(){
  if(offlineMode()){show('removeMsg');$('removeMsg').textContent='Stock remove karne ke liye internet connection zaroori hai. Offline mode mein destructive stock changes disabled hain.';$('removeMsg').className='notice error';$('removeConfirm').disabled=true;return}
  $('removeConfirm').disabled=false;
  $('removeProduct').innerHTML='<option value="">Product select karein</option>'+rows.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (${Number(p.quantity||0)} total)</option>`).join('');
  const sr=await db.from('product_sizes').select('product_id,size,quantity');
  if(sr.error){$('removeMsg').textContent='Size stock load nahi hua: '+sr.error.message;$('removeMsg').className='notice error';show('removeMsg');return}
- sizeRows=sr.data||[];await cacheSnapshot('sizes',sizeRows);updateRemoveStockPreview();
+ sizeRows=sr.data||[];await cacheSnapshot('sizes',sizeRows);removeQrItems=[];removeQrSelected.clear();$('removeQrSearch').value='';renderRemoveQrList();updateRemoveStockPreview();
 }
-function updateRemoveStockPreview(){
- const pid=$('removeProduct').value,sz=$('removeSize').value;const available=Number(sizeRows.find(x=>x.product_id===pid&&x.size===sz)?.quantity||0);
- const q=Number($('removeQty').value||0);$('removeAvailable').textContent=available;$('removeAfter').textContent=Math.max(0,available-(Number.isSafeInteger(q)&&q>0?q:0));$('removeQty').max=String(available);
-}
-$('removeProduct').addEventListener('change',updateRemoveStockPreview);$('removeSize').addEventListener('change',updateRemoveStockPreview);$('removeQty').addEventListener('input',updateRemoveStockPreview);
+function updateRemoveStockPreview(){const pid=$('removeProduct').value,sz=$('removeSize').value;const available=Number(sizeRows.find(x=>x.product_id===pid&&x.size===sz)?.quantity||0);$('removeAvailable').textContent=available;$('removeSelectedCount').textContent=removeQrSelected.size;$('removeQrSummary').textContent=removeQrItems.length?`${removeQrItems.length} available QR · ${removeQrSelected.size} selected`:'Product aur size select karein';$('removeConfirm').disabled=offlineMode()||removeQrSelected.size<1;}
+function renderRemoveQrList(){const q=($('removeQrSearch')?.value||'').trim().toLowerCase();const filtered=removeQrItems.filter(x=>(x.qr_code||'').toLowerCase().includes(q));$('removeQrList').innerHTML=filtered.length?filtered.map(x=>`<label style="display:flex;align-items:center;gap:9px;padding:9px 10px;margin:0;border-bottom:1px solid var(--line);font-weight:500"><input type="checkbox" class="remove-qr-check" value="${esc(x.qr_code)}" ${removeQrSelected.has(x.qr_code)?'checked':''} style="width:18px;height:18px;margin:0;flex:0 0 18px"><span class="sku-code">${esc(x.qr_code)}</span></label>`).join(''):'<div class="muted" style="padding:10px">Search se koi SKU / QR match nahi hua.</div>';document.querySelectorAll('.remove-qr-check').forEach(c=>c.onchange=()=>{if(c.checked)removeQrSelected.add(c.value);else removeQrSelected.delete(c.value);updateRemoveStockPreview();renderRemoveQrList()});updateRemoveStockPreview();}
+async function loadRemoveQrItems(){const pid=$('removeProduct').value,sz=$('removeSize').value;removeQrItems=[];removeQrSelected.clear();$('removeQrSearch').value='';if(!pid){renderRemoveQrList();updateRemoveStockPreview();return}const {data,error}=await db.from('garment_qr').select('qr_code').eq('product_id',pid).eq('size',sz).eq('status','in_stock').order('qr_code');if(error){$('removeQrList').innerHTML=`<div class="notice error">QR list load nahi hui: ${esc(error.message)}</div>`;$('removeQrSummary').textContent='QR data error';updateRemoveStockPreview();return}removeQrItems=data||[];renderRemoveQrList();}
+$('removeProduct').addEventListener('change',()=>{loadRemoveQrItems()});$('removeSize').addEventListener('change',()=>{loadRemoveQrItems()});$('removeQrSearch').addEventListener('input',renderRemoveQrList);
+$('toggleRemoveQrList').onclick=()=>{removeQrListOpen=!removeQrListOpen;$('removeQrListWrap').classList.toggle('hidden',!removeQrListOpen);$('toggleRemoveQrList').textContent=removeQrListOpen?'Hide QR List':'Show QR List';if(removeQrListOpen)$('removeQrSearch').focus()};
+$('selectFilteredRemoveQrs').onclick=()=>{const q=$('removeQrSearch').value.trim().toLowerCase();removeQrItems.filter(x=>(x.qr_code||'').toLowerCase().includes(q)).forEach(x=>removeQrSelected.add(x.qr_code));renderRemoveQrList()};
+$('clearRemoveQrs').onclick=()=>{removeQrSelected.clear();renderRemoveQrList()};
 $('removeConfirm').onclick=async()=>{
- const productId=$('removeProduct').value,size=$('removeSize').value,quantity=Number($('removeQty').value),reason=$('removeReason').value,note=$('removeNote').value.trim()||null;
+ const productId=$('removeProduct').value,size=$('removeSize').value,qrCodes=[...removeQrSelected],quantity=qrCodes.length,reason=$('removeReason').value,note=$('removeNote').value.trim()||null;
  const product=rows.find(p=>p.id===productId),available=Number(sizeRows.find(x=>x.product_id===productId&&x.size===size)?.quantity||0);
  if(!productId){$('removeMsg').textContent='Product select karein.';$('removeMsg').className='notice error';show('removeMsg');return}
- if(!Number.isSafeInteger(quantity)||quantity<1){$('removeMsg').textContent='Quantity 1 ya us se zyada whole number enter karein.';$('removeMsg').className='notice error';show('removeMsg');return}
- if(quantity>available){$('removeMsg').textContent=`${size} size mein sirf ${available} pieces available hain. Is se zyada remove nahi ho sakta.`;$('removeMsg').className='notice error';show('removeMsg');return}
+ if(quantity<1){$('removeMsg').textContent='Pehle QR list khol kar kam az kam 1 SKU select karein.';$('removeMsg').className='notice error';show('removeMsg');return}
+ if(quantity>available){$('removeMsg').textContent=`${size} size mein sirf ${available} pieces available hain. Itne se zyada QR select nahi ho sakte.`;$('removeMsg').className='notice error';show('removeMsg');return}
  if(!navigator.onLine||offlineMode()){ $('removeMsg').textContent='Stock remove karne ke liye internet connection chahiye.';$('removeMsg').className='notice error';show('removeMsg');return}
- if(!confirm(`${product.name} — Size ${size} — ${quantity} piece(s) remove karne hain?\n\nAvailable: ${available} → ${available-quantity}\nReason: ${reason}`))return;
- const btn=$('removeConfirm');btn.disabled=true;$('removeMsg').textContent='Stock removal process ho raha hai…';$('removeMsg').className='notice';show('removeMsg');
- try{
-  const {data,error}=await db.rpc('remove_garment_stock',{p_product_id:productId,p_size:size,p_quantity:quantity,p_reason:reason,p_note:note});
-  if(error)throw error;
-  $('removeMsg').textContent=`${quantity} piece(s) ${product.name} / ${size} se remove ho gaye. History record save hua.`;$('removeMsg').className='notice success';$('removeQty').value='';$('removeNote').value='';
-  await load();await loadRemoveStockForm();
- }catch(e){$('removeMsg').textContent='Stock remove nahi hua: '+(e.message||String(e))+' (Database remove_garment_stock RPC ki zaroorat hai.)';$('removeMsg').className='notice error'}
+ const preview=qrCodes.join('\n');if(!confirm(`${product.name} — Size ${size} — ${quantity} selected piece(s) remove karne hain?\n\nSelected SKU / QR:\n${preview}\n\nAvailable: ${available} → ${available-quantity}\nReason: ${reason}`))return;
+ try{const {data,error}=await db.rpc('remove_garment_stock_by_qr',{p_product_id:productId,p_size:size,p_qr_codes:qrCodes,p_reason:reason,p_note:note});if(error)throw error;$('removeMsg').textContent=`${quantity} selected piece(s) ${product.name} / ${size} se remove ho gaye. Selected QR list History mein save hui.`;$('removeMsg').className='notice success';$('removeNote').value='';await load();await loadRemoveStockForm();}
+ catch(e){$('removeMsg').textContent='Stock remove nahi hua: '+(e.message||String(e))+' (Database remove_garment_stock_by_qr RPC pehle create karein.)';$('removeMsg').className='notice error';show('removeMsg')}
  finally{btn.disabled=false}
 };
 async function loadSizes(){
