@@ -37,6 +37,34 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
 .sidebar-inventory{border:1px solid #ffffff26;background:#17396c;border-radius:14px;padding:13px 10px;margin:8px 0 14px}.sidebar-inventory .foot-brand{font-size:13px;font-weight:800;letter-spacing:.35px}.sidebar-inventory .foot-sub{font-size:12px;color:#c5d4ed;margin:3px 0 10px}.sidebar-inventory .quick-link{margin:6px 0;background:#214c89}.sidebar-inventory .quick-link:hover{background:#2b61b1}.sidebar-foot{border-top:1px solid #ffffff26;margin-top:20px;padding-top:15px}.sales-report{background:transparent;border:0;padding:0;box-shadow:none}.sales-report-head{margin-bottom:16px}.sales-report-head h2{font-size:25px;margin-bottom:4px}.report-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0}.report-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px;box-shadow:0 5px 20px #1c37600a;min-width:0}.report-card.today{border-top:3px solid #2670df}.report-card.week{border-top:3px solid #24a85a}.report-card.month{border-top:3px solid #8b62e9}.report-icon{width:50px;height:50px;border-radius:50%;background:#edf4ff;display:flex;align-items:center;justify-content:center;font-size:23px;flex:0 0 auto}.report-card.week .report-icon{background:#e8f8ee}.report-card.month .report-icon{background:#f1eaff}.report-card span{font-size:13px;font-weight:800;color:#254e89}.report-card>div:nth-child(2){min-width:0}.report-card>div:nth-child(2) b{display:block;font-size:28px;margin:6px 0 0;color:#14294b}.report-card small{font-size:12px;color:#637795;display:block}.report-revenue{border-left:1px solid #dce4ef;padding-left:13px;margin-left:auto;min-width:0}.report-revenue b{font-size:21px;color:#164d9f;display:block;white-space:nowrap}.report-panel{background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px;margin:15px 0;box-shadow:0 5px 20px #1c37600a}.report-chart-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.report-chart-head h2{margin:0}.report-periods{display:flex;gap:5px;background:#f1f5fb;padding:4px;border-radius:11px}.report-period{background:transparent;color:#203e69;padding:9px 14px;border-radius:9px}.report-period:hover{transform:none}.report-period.active{background:#2463d9;color:#fff;box-shadow:0 3px 9px #2463d930}.sales-chart{width:100%;min-height:270px;margin-top:12px}.sales-chart svg{width:100%;height:auto;display:block}.report-panel table{margin-top:8px}.report-panel th{background:#edf4ff;color:#193b6d}.report-panel h2{margin-bottom:10px}@media(max-width:900px){.report-kpis{grid-template-columns:1fr}.report-card{min-height:118px}}@media(max-width:600px){.sidebar-inventory{margin-bottom:10px}.report-card{padding:14px;gap:9px}.report-icon{width:42px;height:42px;font-size:20px}.report-revenue{padding-left:9px}.report-revenue b{font-size:17px}.report-card>div:nth-child(2) b{font-size:24px}.report-panel{padding:13px}.sales-chart{min-height:210px}}
 @media print{@page{size:50mm 25mm;margin:0}html,body{width:50mm!important;margin:0!important;padding:0!important;background:#fff!important}body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:50mm!important;margin:0!important;padding:0!important;display:block!important}.qr-label{width:50mm!important;height:25mm!important;margin:0!important;padding:1mm!important;border:0!important;border-radius:0!important;display:flex!important;align-items:center!important;gap:1mm!important;overflow:hidden!important;page-break-after:always;break-after:page;box-sizing:border-box!important}.qr-label .qr-left{flex:0 0 17mm!important;width:17mm!important;height:17mm!important}.qr-label canvas,.qr-label img{width:17mm!important;height:17mm!important;max-width:17mm!important;margin:0!important}.qr-label .qr-right{flex:1!important;min-width:0!important}.label-brand{font-size:7pt!important;line-height:1!important}.label-product{font-size:7pt!important;line-height:1.05!important;max-height:2.1em!important}.label-price{font-size:9pt!important;margin:1mm 0!important}.label-details,.qr-code-text{font-size:5.5pt!important;line-height:1.05!important}.qr-code-text{overflow-wrap:anywhere!important}}
 @media(max-width:480px){.row,.form-grid{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbar .right{flex-direction:column;align-items:flex-end}.grid{gap:8px}.stat b{font-size:23px}}
+
+/* Sales report mobile-fit corrections */
+@media(max-width:800px){
+  html,body{max-width:100%;overflow-x:hidden}
+  .wrap,.app-shell,.main,.content,.sales-report{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+  .app-shell{grid-template-columns:minmax(0,1fr)}
+  .report-kpis{grid-template-columns:minmax(0,1fr);width:100%;min-width:0}
+  .report-card{display:grid;grid-template-columns:42px minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:center;width:100%;min-width:0;box-sizing:border-box}
+  .report-card>div:nth-child(2){min-width:0}
+  .report-card>div:nth-child(2) b{font-size:clamp(20px,5vw,24px)}
+  .report-revenue{margin-left:0;padding-left:8px;min-width:0;max-width:100%;overflow-wrap:anywhere}
+  .report-revenue b{font-size:clamp(14px,4vw,17px);white-space:normal;overflow-wrap:anywhere}
+  .report-panel{width:100%;max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden}
+  .report-chart-head{align-items:flex-start}
+  .report-periods{max-width:100%;gap:2px}
+  .report-period{padding:8px 10px;font-size:12px}
+  .sales-chart{width:100%;max-width:100%;min-width:0;overflow:hidden}
+  .sales-chart svg{width:100%;max-width:100%;height:auto}
+  .tablewrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .report-panel table{min-width:540px}
+}
+@media(max-width:420px){
+  .report-card{grid-template-columns:36px minmax(0,1fr) minmax(0,1fr);padding:10px;gap:6px}
+  .report-icon{width:36px;height:36px;font-size:18px}
+  .report-revenue{padding-left:6px}
+  .report-revenue b{font-size:14px}
+}
+
 </style></head><body>
 <div id="auth" class="wrap auth panel">
 <h1>Sale Central</h1><p class="muted">Sign in to your inventory account.</p>
@@ -311,7 +339,7 @@ function formatMovementNote(x){if(x.movement_type!=='REMOVE'||!x.note)return esc
 function renderHistoryAndSales(){
  $('historyRows').innerHTML=movements.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.products?.name)}</td><td>${x.movement_type==='IN'?'Stock In':(x.movement_type==='REMOVE'?'Stock Removed':'Sale Out')}</td><td>${x.quantity}</td><td>${formatMovementNote(x)}</td></tr>`).join('')||'<tr><td colspan="5">No history yet.</td></tr>';
  const sold=movements.filter(x=>x.movement_type==='OUT').reduce((a,x)=>a+Number(x.quantity||0),0);const today=new Date().toDateString();const soldToday=movements.filter(x=>x.movement_type==='OUT'&&new Date(x.created_at).toDateString()===today).reduce((a,x)=>a+Number(x.quantity||0),0);
- $('soldTotal').textContent=sold;$('todaySold').textContent=soldToday;$('salesAll').textContent=sold;$('salesToday').textContent=soldToday;
+ $('soldTotal').textContent=sold;$('todaySold').textContent=soldToday;if($('salesAll'))$('salesAll').textContent=sold;if($('salesToday'))$('salesToday').textContent=soldToday;
 }
 async function loadOfflineDashboard(){
  try{
@@ -832,11 +860,13 @@ async function finalizeSale(){
  }
  $('confirmSaveSale').disabled=true;$('cancelSalePreview').disabled=true;$('checkout').disabled=true;$('confirmSaveSale').disabled=true;$('cancelSalePreview').disabled=true;$('checkout').disabled=true;
  billingMessage('Sale save ho rahi hai aur stock update ho raha hai…');
+ let saleSaved=false;
  const basePayload={p_qr_codes:p.qrCodes,p_customer_name:p.customerName,p_customer_phone:p.customerPhone,p_payments:p.payments};
  const payload=p.voucherCode?{...basePayload,p_voucher_code:p.voucherCode}:basePayload;
  try{
   const {data,error}=await db.rpc(p.voucherCode?'complete_sale_with_store_credit':'complete_stitchmaster_invoice',payload);
   if(error)throw error;
+  saleSaved=true;
   const invoiceId=data?.invoice_id||data?.id;
   let saveWarning='';
   if(invoiceId){
@@ -846,8 +876,11 @@ async function finalizeSale(){
   const inv={...data,customer_name:p.customerName,customer_phone:p.customerPhone,cash_received:p.cashReceived,change_returned:p.changeReturned};
   const displayPayments=p.payments.slice();if(data.voucher_credit_used>0)displayPayments.unshift({method:'store credit voucher',amount:data.voucher_credit_used});
   renderInvoice(inv,p.items,displayPayments);cart=[];renderCart();$('customerName').value='';$('customerPhone').value='';$('billVoucherCode').value='';$('cashReceived').value='';$('paymentRows').innerHTML='';addPaymentRow('cash','');$('saleConfirmPreview').innerHTML='';pendingCheckout=null;
-  billingMessage('Invoice successfully create ho gaya. Stock deduct aur voucher update ho gaya.'+saveWarning,!!saveWarning);await load();await loadInvoices();await loadBillingSkuList();
- }catch(e){billingMessage('Sale complete nahi hui: '+(e.message||e),true);$('confirmSaveSale').disabled=false;$('cancelSalePreview').disabled=false;}
+  billingMessage('Invoice successfully create ho gaya. Stock deduct aur voucher update ho gaya.'+saveWarning,!!saveWarning);
+  const refreshResults=await Promise.allSettled([load(),loadBillingSkuList()]);
+  const refreshErrors=refreshResults.filter(x=>x.status==='rejected').map(x=>x.reason?.message||String(x.reason));
+  if(refreshErrors.length)billingMessage('Sale save ho gayi aur invoice ban gaya. Lekin screen refresh mein issue: '+refreshErrors.join(' · ')+'. Refresh button ya page reload se data dobara load karein.',true);
+ }catch(e){billingMessage((saleSaved?'Sale save ho gayi, lekin invoice display/refresh mein issue: ':'Sale complete nahi hui: ')+(e.message||e),true);if(!saleSaved){$('confirmSaveSale').disabled=false;$('cancelSalePreview').disabled=false;}}
  finally{$('checkout').disabled=false;}
 }
 addPaymentRow('cash','');renderCart();
