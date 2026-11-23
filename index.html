@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sale Central</title>
-<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="voucher-auto-payment-pants-sizes-qr-limit-20261123-2"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="voucher-preview-exchange-history-20261123-1"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
 *{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
@@ -173,6 +173,9 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <label>Reason (optional)</label><input id="exchangeReason" maxlength="200" placeholder="Optional exchange note">
     <div id="exchangeMsg" class="notice hidden"></div>
     <div id="exchangeResult" class="panel hidden" style="margin-top:14px;background:#f7faff"></div>
+    <div class="section-head" style="margin-top:22px"><div><h2>Exchange History</h2><span class="muted">Returned product aur uske issued voucher ka record</span></div><button id="refreshExchangeHistory" class="secondary" type="button">↻ Refresh</button></div>
+    <div id="exchangeHistoryMsg" class="notice hidden"></div>
+    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Returned Product</th><th>QR / Size</th><th>Voucher Number</th><th>Issued Credit</th><th>Available Balance</th><th>Status</th></tr></thead><tbody id="exchangeHistoryRows"><tr><td colspan="7">Exchange history load nahi hui.</td></tr></tbody></table></div>
     <p class="muted" style="margin-top:14px">Credit vouchers are non-cash. The original invoice and 3-day exchange rule are checked by the database function.</p>
   </section>
   <section id="sizes" class="panel hidden">
@@ -311,13 +314,13 @@ $('myProfile').onclick=async()=>{const {data:{user}}=await db.auth.getUser();ope
 $('changePassword').onclick=()=>{openAdminModal('Change Password',`<label>New password</label><input id="newAdminPassword" type="password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmAdminPassword" type="password" placeholder="Re-enter new password"><div id="passwordNotice" class="notice hidden"></div><button id="saveAdminPassword" type="button" style="margin-top:12px">Update Password</button>`);$('saveAdminPassword').onclick=async()=>{const a=$('newAdminPassword').value,b=$('confirmAdminPassword').value;if(a.length<6){msg('passwordNotice','Password kam az kam 6 characters ka hona chahiye.',true);return}if(a!==b){msg('passwordNotice','Dono passwords match nahi karte.',true);return}const {error}=await db.auth.updateUser({password:a});if(error)msg('passwordNotice',error.message,true);else msg('passwordNotice','Password successfully update ho gaya.')};};
 $('settingsBtn').onclick=()=>openAdminModal('Settings',`<p><b>Brand</b></p><p class="muted">Sale Central</p><p><b>Theme</b></p><p class="muted">Navy blue &amp; blue, light dashboard</p><p class="muted">This panel is a basic account settings overview.</p>`);
 function focusBillingScanner(){const input=$('billingScanInput');if(!input||$('billing').classList.contains('hidden'))return;setTimeout(()=>{if(!$('billing').classList.contains('hidden')){input.focus({preventScroll:true});input.select?.()}},180)}
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','remove','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='remove')loadRemoveStockForm();if(b.dataset.tab==='billing'){loadInvoices();loadBillingSkuList();focusBillingScanner()}});
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','remove','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='remove')loadRemoveStockForm();if(b.dataset.tab==='exchange')loadExchangeHistory();if(b.dataset.tab==='billing'){loadInvoices();loadBillingSkuList();focusBillingScanner()}});
 $('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;$('refreshSkuList').onclick=loadBillingSkuList;$('skuSearch').addEventListener('input',renderBillingSkuList);
 $('toggleSkuList').onclick=()=>{const body=$('skuListContent'),closed=body.classList.toggle('hidden');$('toggleSkuList').textContent=closed?'Show SKU List':'Hide SKU List';if(!closed)$('skuSearch').focus()};
 $('syncOfflineNow').onclick=async()=>{if(!navigator.onLine){billingMessage('Internet connect karein, phir Sync Offline Sales Now dabayein.',true);return} $('syncOfflineNow').disabled=true;await syncPendingSales(true);await load();$('syncOfflineNow').disabled=false};
 $('exchangeIssue').onclick=issueExchangeCredit;
 $('exchangeQr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();issueExchangeCredit()}});
-let billingVoucherBalance=null,billingVoucherCodeLoaded='',billingVoucherLookupToken=0;
+let billingVoucherBalance=null,billingVoucherIssuedAmount=0,billingVoucherExpiry=null,billingVoucherCodeLoaded='',billingVoucherLookupToken=0;
 async function refreshBillingVoucherBalance(){
  const code=$('billVoucherCode').value.trim();
  const token=++billingVoucherLookupToken;
@@ -326,18 +329,19 @@ async function refreshBillingVoucherBalance(){
  if(offlineMode()){msg('voucherPreviewMsg','Voucher balance check karne ke liye internet zaroori hai.',true);updateAutoPaymentAmount();return}
  msg('voucherPreviewMsg','Voucher balance verify ho raha hai…');
  try{
-  const {data:v,error}=await db.from('store_credit_vouchers').select('remaining_amount,status,expires_at').eq('voucher_code',code).maybeSingle();
+  const {data:v,error}=await db.from('store_credit_vouchers').select('issued_amount,remaining_amount,status,expires_at').eq('voucher_code',code).maybeSingle();
   if(token!==billingVoucherLookupToken)return;
   if(error)throw error;
   if(!v)throw new Error('Voucher code nahi mila.');
   if(v.status!=='active')throw new Error('Voucher active nahi hai.');
   if(v.expires_at&&new Date(v.expires_at)<=new Date())throw new Error('Voucher expire ho chuka hai.');
   billingVoucherBalance=Math.max(0,Number(v.remaining_amount||0));billingVoucherCodeLoaded=code;
-  msg('voucherPreviewMsg','Voucher balance: '+money(billingVoucherBalance)+' · Cart total ke mutabiq payment automatic calculate hogi.');
+  billingVoucherIssuedAmount=Math.max(0,Number(v.issued_amount||0));billingVoucherExpiry=v.expires_at||null;
+  renderBillingVoucherPreview();
  }catch(e){if(token!==billingVoucherLookupToken)return;billingVoucherBalance=null;billingVoucherCodeLoaded='';msg('voucherPreviewMsg',e.message||'Voucher verify nahi ho saka.',true)}
  updateAutoPaymentAmount();
 }
-$('billVoucherCode').addEventListener('input',()=>{hide('voucherPreviewMsg');billingVoucherBalance=null;billingVoucherCodeLoaded='';billingVoucherLookupToken++;updateAutoPaymentAmount();});
+$('billVoucherCode').addEventListener('input',()=>{hide('voucherPreviewMsg');billingVoucherBalance=null;billingVoucherIssuedAmount=0;billingVoucherExpiry=null;billingVoucherCodeLoaded='';billingVoucherLookupToken++;updateAutoPaymentAmount();});
 $('billVoucherCode').addEventListener('change',refreshBillingVoucherBalance);
 $('billVoucherCode').addEventListener('blur',refreshBillingVoucherBalance);
 const DRESS_SIZES=['S','M','L','XL','XXL'];
@@ -547,6 +551,32 @@ $('scanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefau
 $('confirmSale').onclick=()=>{if(!stagedGarment||!stagedQr)return;if(cart.some(x=>x.qr_code===stagedQr)){msg('scanResult','Yeh garment cart mein pehle se hai.',true);return}cart.push(stagedGarment);renderCart();stagedQr='';stagedGarment=null;$('scanInput').value='';hide('confirmSale');$('scanResult').textContent='Garment cart mein add ho gaya. Agla QR scan karein ya Billing tab mein checkout karein.'};
 function money(n){return 'Rs. '+Number(n||0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function billingMessage(t,bad=false){const el=$('billingMsg');el.textContent=t;el.className='notice '+(bad?'error':'success')}
+async function loadExchangeHistory(){
+ const body=$('exchangeHistoryRows');if(!body||!db)return;
+ if(offlineMode()){body.innerHTML='<tr><td colspan="7">Exchange history dekhne ke liye internet connect karein.</td></tr>';return}
+ body.innerHTML='<tr><td colspan="7">Exchange history load ho rahi hai…</td></tr>';hide('exchangeHistoryMsg');
+ try{
+  const {data:credits,error}=await db.from('exchange_credits').select('id,returned_qr_code,returned_product_id,returned_size,credit_amount,voucher_id,created_at,reason').order('created_at',{ascending:false}).limit(500);
+  if(error)throw error;
+  const list=credits||[];
+  if(!list.length){body.innerHTML='<tr><td colspan="7">Abhi koi exchange record nahi hai.</td></tr>';return}
+  const voucherIds=[...new Set(list.map(x=>x.voucher_id).filter(Boolean))];
+  const productIds=[...new Set(list.map(x=>x.returned_product_id).filter(Boolean))];
+  const [voucherResult,productResult]=await Promise.all([
+   voucherIds.length?db.from('store_credit_vouchers').select('id,voucher_code,issued_amount,remaining_amount,status,expires_at').in('id',voucherIds):Promise.resolve({data:[],error:null}),
+   productIds.length?db.from('products').select('id,name').in('id',productIds):Promise.resolve({data:[],error:null})
+  ]);
+  if(voucherResult.error)throw voucherResult.error;if(productResult.error)throw productResult.error;
+  const voucherMap=new Map((voucherResult.data||[]).map(x=>[x.id,x]));
+  const productMap=new Map((productResult.data||[]).map(x=>[x.id,x]));
+  body.innerHTML=list.map(x=>{
+   const v=voucherMap.get(x.voucher_id)||{},product=productMap.get(x.returned_product_id)||{};
+   const status=v.status==='active'?'Active':(v.status==='used'?'Used':(v.status==='void'?'Void':'—'));
+   return `<tr><td>${x.created_at?new Date(x.created_at).toLocaleString():'—'}</td><td>${esc(product.name||'Product')}</td><td><div>${esc(x.returned_qr_code||'—')}</div><div class="muted">Size: ${esc(x.returned_size||'—')}</div></td><td><b>${esc(v.voucher_code||'Voucher record missing')}</b></td><td>${money(x.credit_amount??v.issued_amount)}</td><td>${money(v.remaining_amount)}</td><td><span class="status-pill ${esc(v.status||'unpaid')}">${status}</span></td></tr>`;
+  }).join('');
+ }catch(e){body.innerHTML='<tr><td colspan="7">History load nahi hui.</td></tr>';msg('exchangeHistoryMsg','Exchange history error: '+(e.message||String(e)),true)}
+}
+$('refreshExchangeHistory').onclick=loadExchangeHistory;
 async function issueExchangeCredit(){
  if(offlineMode()){$('exchangeMsg').textContent='Exchange / Credit issue karne ke liye internet connection zaroori hai.';$('exchangeMsg').className='notice error';show('exchangeMsg');return}
  const code=$('exchangeQr').value.trim();if(!code){$('exchangeMsg').textContent='Returned QR code enter karein.';$('exchangeMsg').className='notice error';show('exchangeMsg');return}
@@ -558,24 +588,37 @@ async function issueExchangeCredit(){
   $('exchangeResult').innerHTML=`<h2>Credit Voucher Issued</h2><p>Original invoice: <b>${esc(result.original_invoice_number||'')}</b></p><p>Returned QR: <b>${esc(result.returned_qr_code||code)}</b></p><p>Credit amount: <b>${money(result.credit_amount)}</b></p><p>Voucher Code: <b style="font-size:20px;letter-spacing:1px">${esc(result.voucher_code||'')}</b></p><p class="muted">Expiry: ${result.expires_at?new Date(result.expires_at).toLocaleString():'—'}</p><button type="button" class="secondary" id="copyVoucherCode">Copy Voucher Code</button>`;
   show('exchangeResult');$('exchangeMsg').textContent='Exchange approved. Returned garment stock restored and credit voucher created.';$('exchangeMsg').className='notice success';
   $('copyVoucherCode').onclick=()=>{if(navigator.clipboard&&result.voucher_code)navigator.clipboard.writeText(result.voucher_code).then(()=>{$('exchangeMsg').textContent='Voucher code copied.'}).catch(()=>{$('exchangeMsg').textContent='Code select karke copy karein: '+result.voucher_code});};
-  $('exchangeQr').value='';$('exchangeReason').value='';await load();
+  $('exchangeQr').value='';$('exchangeReason').value='';await Promise.all([load(),loadExchangeHistory()]);
  }catch(err){$('exchangeMsg').textContent='Exchange fail: '+(err.message||String(err));$('exchangeMsg').className='notice error';}
  btn.disabled=false;
 }
+function renderBillingVoucherPreview(){
+ const box=$('voucherPreviewMsg');if(!box)return;
+ const code=$('billVoucherCode')?.value.trim()||'';
+ if(!code){hide('voucherPreviewMsg');return}
+ if(billingVoucherCodeLoaded!==code||!Number.isFinite(billingVoucherBalance))return;
+ const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
+ const creditUsed=Math.min(total,billingVoucherBalance);
+ const after=Math.max(0,billingVoucherBalance-creditUsed);
+ const used=Math.max(0,billingVoucherIssuedAmount-billingVoucherBalance);
+ box.className='notice success';box.innerHTML=`<div style="font-weight:800;margin-bottom:8px">Voucher Verified · ${esc(code)}</div><div class="cart-total"><span>Original Credit</span><b>${money(billingVoucherIssuedAmount)}</b></div><div class="cart-total"><span>Already Used</span><b>${money(used)}</b></div><div class="cart-total"><span>Available Balance</span><b style="color:#176b37">${money(billingVoucherBalance)}</b></div><div class="cart-total"><span>This Bill — Voucher Use</span><b>${money(creditUsed)}</b></div><div class="cart-total"><span>Balance After This Sale</span><b>${money(after)}</b></div><div class="muted" style="margin-top:7px">${total>billingVoucherBalance?'Voucher se zyada shopping par baqi amount cash/card/online se pay karein.':(total>0?'Current cart voucher se cover ho sakta hai.':'Cart mein products add karne par amount update hogi.')} ${billingVoucherExpiry?'Expiry: '+new Date(billingVoucherExpiry).toLocaleDateString():''}</div>`;
+ show('voucherPreviewMsg');
+}
 function updateAutoPaymentAmount(){
  const rows=[...$('paymentRows').querySelectorAll('.payment-row')];
- if(rows.length!==1)return;
- const input=rows[0].querySelector('.pay-amount');
- if(!input)return;
- if(input.dataset.autoFill==='1'||input.value.trim()===''){
-  const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
-  const code=$('billVoucherCode')?.value.trim()||'';
-  const balance=(code&&billingVoucherCodeLoaded===code&&Number.isFinite(billingVoucherBalance))?billingVoucherBalance:0;
-  const amountDue=Math.max(0,Number((total-Math.min(total,balance)).toFixed(2)));
-  // A fully voucher-paid bill must have no zero-value payment row.
-  input.value=amountDue>0?amountDue:'';
-  input.dataset.autoFill='1';
+ if(rows.length===1){
+  const input=rows[0].querySelector('.pay-amount');
+  if(input&&(input.dataset.autoFill==='1'||input.value.trim()==='')){
+   const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
+   const code=$('billVoucherCode')?.value.trim()||'';
+   const balance=(code&&billingVoucherCodeLoaded===code&&Number.isFinite(billingVoucherBalance))?billingVoucherBalance:0;
+   const amountDue=Math.max(0,Number((total-Math.min(total,balance)).toFixed(2)));
+   // A fully voucher-paid bill must have no zero-value payment row.
+   input.value=amountDue>0?amountDue:'';
+   input.dataset.autoFill='1';
+  }
  }
+ renderBillingVoucherPreview();
 }
 function renderCart(){
  $('cartCount').textContent=cart.length;
@@ -685,7 +728,7 @@ function addPaymentRow(method='cash',amount=''){
  const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Remove';remove.onclick=()=>{row.remove()};row.append(methodWrap,amountWrap,remove);$('paymentRows').append(row);updateAutoPaymentAmount();
 }
 $('addPayment').onclick=()=>addPaymentRow('cash','');
-$('clearCart').onclick=()=>{cart=[];renderCart();$('billVoucherCode').value='';$('cashReceived').value='';$('saleConfirmPreview').innerHTML='';pendingCheckout=null;billingMessage('Cart clear kar diya gaya.');};
+$('clearCart').onclick=()=>{cart=[];$('billVoucherCode').value='';billingVoucherBalance=null;billingVoucherIssuedAmount=0;billingVoucherExpiry=null;billingVoucherCodeLoaded='';billingVoucherLookupToken++;hide('voucherPreviewMsg');$('cashReceived').value='';$('saleConfirmPreview').innerHTML='';pendingCheckout=null;renderCart();billingMessage('Cart clear kar diya gaya.');};
 function renderInvoice(inv,items,payments){
  const rowsHtml=items.map(x=>`<tr><td>${esc(x.category||'Other')}</td><td>${esc(x.product_name)}</td><td>${esc(x.size)}</td><td>${esc(x.color||'—')}</td><td>${esc(x.qr_code)}</td><td>${money(x.unit_price??x.price)}</td></tr>`).join('');
  const payHtml=payments.length?payments.map(x=>`<tr><td>${esc(String(x.method||x.payment_method||'').toUpperCase())}</td><td>${money(x.amount)}</td></tr>`).join(''):'<tr><td>Payment</td><td>Unpaid</td></tr>';
@@ -890,7 +933,7 @@ $('checkout').onclick=async()=>{
  const voucherCode=$('billVoucherCode').value.trim();let voucherBalance=0,creditUsed=0;
  if(offlineMode()&&voucherCode){billingMessage('Offline sale mein voucher use nahi ho sakta. Voucher ke liye internet zaroori hai.',true);return}
  if(voucherCode){
-  const {data:v,error:ve}=await db.from('store_credit_vouchers').select('remaining_amount,status,expires_at').eq('voucher_code',voucherCode).maybeSingle();
+  const {data:v,error:ve}=await db.from('store_credit_vouchers').select('issued_amount,remaining_amount,status,expires_at').eq('voucher_code',voucherCode).maybeSingle();
   if(ve){billingMessage('Voucher verify nahi ho saka: '+ve.message,true);return}
   if(!v){billingMessage('Voucher code nahi mila.',true);return}
   if(v.status!=='active'){billingMessage('Voucher active nahi hai.',true);return}
