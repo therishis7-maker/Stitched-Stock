@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sale Central</title>
-<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="sales-report-analytics-20261123-1"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="voucher-auto-payment-pants-sizes-qr-limit-20261123-2"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
 *{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
@@ -116,7 +116,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
     <div class="form-grid"><div><label>Product / Design</label><select id="product"></select></div><div><label>Size</label><select id="size"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></div></div>
     <h2 style="margin-top:20px">Design Details (all sizes share this price)</h2>
     <div class="form-grid"><div><label>Fabric Name</label><input id="fabricName" maxlength="100" placeholder="e.g. Silk"></div><div><label>Color</label><input id="designColor" maxlength="60" placeholder="e.g. Black"></div></div>
-    <label>Design Price (Rs.) — same for S, M, L, XL and XXL</label><input id="designPrice" type="number" min="0" step="0.01" placeholder="e.g. 4999">
+    <label>Design Price (Rs.) — same for all sizes</label><input id="designPrice" type="number" min="0" step="0.01" placeholder="e.g. 4999">
     <div class="muted" style="margin-top:8px">Fabric, colour aur price Stock Save ke sath automatically save ho jayenge.</div>
     <p class="muted">Fabric, color aur price design ke saath save honge. Har size ka price isi design wala rahega.</p>
     <label>Quantity (pieces)</label><input id="qty" type="number" min="1" max="500" step="1" placeholder="e.g. 25">
@@ -177,7 +177,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
   </section>
   <section id="sizes" class="panel hidden">
     <div class="section-head"><div><h2>Size-wise Stock</h2><span class="muted">Live available quantity by product and size</span></div><button id="sizesRefresh" class="secondary">↻ Refresh</button></div>
-    <div class="tablewrap"><table><thead><tr><th>Product / Design</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>XXL</th><th>Total</th></tr></thead><tbody id="sizeRows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Product / Design</th><th>Sizes / Quantity</th><th>Total</th></tr></thead><tbody id="sizeRows"><tr><td colspan="3">Loading…</td></tr></tbody></table></div>
   </section>
   <section id="qr" class="panel hidden" aria-hidden="true" style="display:none!important">
     <div class="section-head"><div><h2>QR Scanner & Sale Confirmation</h2><span class="muted">Scan one garment QR, then confirm its sale</span></div></div>
@@ -317,12 +317,41 @@ $('toggleSkuList').onclick=()=>{const body=$('skuListContent'),closed=body.class
 $('syncOfflineNow').onclick=async()=>{if(!navigator.onLine){billingMessage('Internet connect karein, phir Sync Offline Sales Now dabayein.',true);return} $('syncOfflineNow').disabled=true;await syncPendingSales(true);await load();$('syncOfflineNow').disabled=false};
 $('exchangeIssue').onclick=issueExchangeCredit;
 $('exchangeQr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();issueExchangeCredit()}});
-$('billVoucherCode').addEventListener('input',()=>{hide('voucherPreviewMsg');});
+let billingVoucherBalance=null,billingVoucherCodeLoaded='',billingVoucherLookupToken=0;
+async function refreshBillingVoucherBalance(){
+ const code=$('billVoucherCode').value.trim();
+ const token=++billingVoucherLookupToken;
+ billingVoucherBalance=null;billingVoucherCodeLoaded='';
+ if(!code){hide('voucherPreviewMsg');updateAutoPaymentAmount();return}
+ if(offlineMode()){msg('voucherPreviewMsg','Voucher balance check karne ke liye internet zaroori hai.',true);updateAutoPaymentAmount();return}
+ msg('voucherPreviewMsg','Voucher balance verify ho raha hai…');
+ try{
+  const {data:v,error}=await db.from('store_credit_vouchers').select('remaining_amount,status,expires_at').eq('voucher_code',code).maybeSingle();
+  if(token!==billingVoucherLookupToken)return;
+  if(error)throw error;
+  if(!v)throw new Error('Voucher code nahi mila.');
+  if(v.status!=='active')throw new Error('Voucher active nahi hai.');
+  if(v.expires_at&&new Date(v.expires_at)<=new Date())throw new Error('Voucher expire ho chuka hai.');
+  billingVoucherBalance=Math.max(0,Number(v.remaining_amount||0));billingVoucherCodeLoaded=code;
+  msg('voucherPreviewMsg','Voucher balance: '+money(billingVoucherBalance)+' · Cart total ke mutabiq payment automatic calculate hogi.');
+ }catch(e){if(token!==billingVoucherLookupToken)return;billingVoucherBalance=null;billingVoucherCodeLoaded='';msg('voucherPreviewMsg',e.message||'Voucher verify nahi ho saka.',true)}
+ updateAutoPaymentAmount();
+}
+$('billVoucherCode').addEventListener('input',()=>{hide('voucherPreviewMsg');billingVoucherBalance=null;billingVoucherCodeLoaded='';billingVoucherLookupToken++;updateAutoPaymentAmount();});
+$('billVoucherCode').addEventListener('change',refreshBillingVoucherBalance);
+$('billVoucherCode').addEventListener('blur',refreshBillingVoucherBalance);
+const DRESS_SIZES=['S','M','L','XL','XXL'];
+const WAIST_SIZES=Array.from({length:10},(_,i)=>String(26+i*2)); // 26, 28 ... 44
+function isTrouserProduct(p){const v=((p?.category||'')+' '+(p?.name||'')).toLowerCase();return /\b(pants?|trousers?)\b/.test(v);}
+function sizesForProduct(p){return isTrouserProduct(p)?WAIST_SIZES:DRESS_SIZES;}
+function setSizeOptions(selectEl,p){if(!selectEl)return;const wanted=selectEl.value;const opts=sizesForProduct(p);selectEl.innerHTML=opts.map(x=>`<option value=\"${x}\">${x}</option>`).join('');if(opts.includes(wanted))selectEl.value=wanted;}
+function syncProductSizeSelectors(){const p=rows.find(x=>x.id===$('product').value);setSizeOptions($('size'),p);const rp=rows.find(x=>x.id===$('removeProduct').value);setSizeOptions($('removeSize'),rp);}
 function fillDesignFields(){
  const p=rows.find(x=>x.id===$('product').value);
  $('fabricName').value=p?.fabric_name||'';
  $('designColor').value=p?.color||'';
  $('designPrice').value=p?.price??'';
+ setSizeOptions($('size'),p);
 }
 $('product').addEventListener('change',fillDesignFields);
 async function load(){
@@ -394,7 +423,7 @@ async function openStockDetails(productId){
  const r=offlineMode()?{data:sizeRows.filter(x=>x.product_id===productId)}:await db.from('product_sizes').select('size,quantity').eq('product_id',productId).order('size');
  if(r.error){openAdminModal('Stock Details',`<p class="notice error">${esc(r.error.message)}</p>`);return}
  const sizes=r.data||[];const q=Number(p.quantity||0);
- openAdminModal('Complete Stock Details',`<p><b>Product:</b> ${esc(p.name)}</p><p><b>Category:</b> ${esc(p.category||'Other')}</p><p><b>Fabric / Name:</b> ${esc(p.fabric_name||'—')}</p><p><b>Colour:</b> ${esc(p.color||'—')}</p><p><b>Price:</b> ${money(p.price)}</p><p><b>Total Available:</b> ${q}</p><p><b>Status:</b> <span class="status-pill ${q>0?'':'unpaid'}">${q>0?'In Stock':'Out of Stock'}</span></p><h3>Size-wise Quantity</h3><div class="tablewrap"><table><thead><tr><th>Size</th><th>Quantity</th><th>Status</th></tr></thead><tbody>${['S','M','L','XL','XXL'].map(sz=>{const n=Number(sizes.find(x=>x.size===sz)?.quantity||0);return `<tr><td>${sz}</td><td>${n}</td><td>${n>0?'In Stock':'Out of Stock'}</td></tr>`}).join('')}</tbody></table></div>`);
+ openAdminModal('Complete Stock Details',`<p><b>Product:</b> ${esc(p.name)}</p><p><b>Category:</b> ${esc(p.category||'Other')}</p><p><b>Fabric / Name:</b> ${esc(p.fabric_name||'—')}</p><p><b>Colour:</b> ${esc(p.color||'—')}</p><p><b>Price:</b> ${money(p.price)}</p><p><b>Total Available:</b> ${q}</p><p><b>Status:</b> <span class="status-pill ${q>0?'':'unpaid'}">${q>0?'In Stock':'Out of Stock'}</span></p><h3>Size-wise Quantity</h3><div class="tablewrap"><table><thead><tr><th>Size</th><th>Quantity</th><th>Status</th></tr></thead><tbody>${sizesForProduct(p).map(sz=>{const n=Number(sizes.find(x=>x.size===sz)?.quantity||0);return `<tr><td>${sz}</td><td>${n}</td><td>${n>0?'In Stock':'Out of Stock'}</td></tr>`}).join('')}</tbody></table></div>`);
 }
 let removeQrItems=[],removeQrSelected=new Set(),removeQrListOpen=false;
 async function loadRemoveStockForm(){
@@ -407,8 +436,8 @@ async function loadRemoveStockForm(){
 }
 function updateRemoveStockPreview(){const pid=$('removeProduct').value,sz=$('removeSize').value;const available=Number(sizeRows.find(x=>x.product_id===pid&&x.size===sz)?.quantity||0);$('removeAvailable').textContent=available;$('removeSelectedCount').textContent=removeQrSelected.size;$('removeQrSummary').textContent=removeQrItems.length?`${removeQrItems.length} available QR · ${removeQrSelected.size} selected`:'Product aur size select karein';$('removeConfirm').disabled=offlineMode()||removeQrSelected.size<1;}
 function renderRemoveQrList(){const q=($('removeQrSearch')?.value||'').trim().toLowerCase();const filtered=removeQrItems.filter(x=>(x.qr_code||'').toLowerCase().includes(q));$('removeQrList').innerHTML=filtered.length?filtered.map(x=>`<label style="display:flex;align-items:center;gap:9px;padding:9px 10px;margin:0;border-bottom:1px solid var(--line);font-weight:500"><input type="checkbox" class="remove-qr-check" value="${esc(x.qr_code)}" ${removeQrSelected.has(x.qr_code)?'checked':''} style="width:18px;height:18px;margin:0;flex:0 0 18px"><span class="sku-code">${esc(x.qr_code)}</span></label>`).join(''):'<div class="muted" style="padding:10px">Search se koi SKU / QR match nahi hua.</div>';document.querySelectorAll('.remove-qr-check').forEach(c=>c.onchange=()=>{if(c.checked)removeQrSelected.add(c.value);else removeQrSelected.delete(c.value);updateRemoveStockPreview();renderRemoveQrList()});updateRemoveStockPreview();}
-async function loadRemoveQrItems(){const pid=$('removeProduct').value,sz=$('removeSize').value;removeQrItems=[];removeQrSelected.clear();$('removeQrSearch').value='';if(!pid){renderRemoveQrList();updateRemoveStockPreview();return}const {data,error}=await db.from('garment_qr').select('qr_code').eq('product_id',pid).eq('size',sz).eq('status','in_stock').order('qr_code');if(error){$('removeQrList').innerHTML=`<div class="notice error">QR list load nahi hui: ${esc(error.message)}</div>`;$('removeQrSummary').textContent='QR data error';updateRemoveStockPreview();return}removeQrItems=data||[];renderRemoveQrList();}
-$('removeProduct').addEventListener('change',()=>{loadRemoveQrItems()});$('removeSize').addEventListener('change',()=>{loadRemoveQrItems()});$('removeQrSearch').addEventListener('input',renderRemoveQrList);
+async function loadRemoveQrItems(){const pid=$('removeProduct').value,sz=$('removeSize').value;removeQrItems=[];removeQrSelected.clear();$('removeQrSearch').value='';if(!pid){renderRemoveQrList();updateRemoveStockPreview();return}const {data,error}=await db.from('garment_qr').select('qr_code').eq('product_id',pid).eq('size',sz).eq('status','in_stock').order('qr_code').limit(500);if(error){$('removeQrList').innerHTML=`<div class="notice error">QR list load nahi hui: ${esc(error.message)}</div>`;$('removeQrSummary').textContent='QR data error';updateRemoveStockPreview();return}removeQrItems=data||[];renderRemoveQrList();}
+$('removeProduct').addEventListener('change',()=>{const p=rows.find(x=>x.id===$('removeProduct').value);setSizeOptions($('removeSize'),p);loadRemoveQrItems()});$('removeSize').addEventListener('change',()=>{loadRemoveQrItems()});$('removeQrSearch').addEventListener('input',renderRemoveQrList);
 $('toggleRemoveQrList').onclick=()=>{removeQrListOpen=!removeQrListOpen;$('removeQrListWrap').classList.toggle('hidden',!removeQrListOpen);$('toggleRemoveQrList').textContent=removeQrListOpen?'Hide QR List':'Show QR List';if(removeQrListOpen)$('removeQrSearch').focus()};
 $('selectFilteredRemoveQrs').onclick=()=>{const q=$('removeQrSearch').value.trim().toLowerCase();removeQrItems.filter(x=>(x.qr_code||'').toLowerCase().includes(q)).forEach(x=>removeQrSelected.add(x.qr_code));renderRemoveQrList()};
 $('clearRemoveQrs').onclick=()=>{removeQrSelected.clear();renderRemoveQrList()};
@@ -422,12 +451,12 @@ $('removeConfirm').onclick=async()=>{
  const preview=qrCodes.join('\n');if(!confirm(`${product.name} — Size ${size} — ${quantity} selected piece(s) remove karne hain?\n\nSelected SKU / QR:\n${preview}\n\nAvailable: ${available} → ${available-quantity}\nReason: ${reason}`))return;
  try{const {data,error}=await db.rpc('remove_garment_stock_by_qr',{p_product_id:productId,p_size:size,p_qr_codes:qrCodes,p_reason:reason,p_note:note});if(error)throw error;$('removeMsg').textContent=`${quantity} selected piece(s) ${product.name} / ${size} se remove ho gaye. Selected QR list History mein save hui.`;$('removeMsg').className='notice success';$('removeNote').value='';await load();await loadRemoveStockForm();}
  catch(e){$('removeMsg').textContent='Stock remove nahi hua: '+(e.message||String(e))+' (Database remove_garment_stock_by_qr RPC pehle create karein.)';$('removeMsg').className='notice error';show('removeMsg')}
- finally{btn.disabled=false}
+ finally{$('removeConfirm').disabled=offlineMode()||removeQrSelected.size<1}
 };
 async function loadSizes(){
  let r;if(offlineMode())r={data:await cachedSnapshot('sizes',[])};else r=await db.from('product_sizes').select('product_id,size,quantity');
- if(r.error){if(!offlineMode()&&isNetworkFailure(r.error)){markOfflineMode();sizeRows=await cachedSnapshot('sizes',[])}else{$('sizeRows').innerHTML=`<tr><td colspan="7">${esc(r.error.message)}</td></tr>`;return}}else sizeRows=r.data||[];if(!offlineMode())await cacheSnapshot('sizes',sizeRows);
- $('sizeRows').innerHTML=rows.map(p=>{const vals=['S','M','L','XL','XXL'].map(sz=>Number(sizeRows.find(x=>x.product_id===p.id&&x.size===sz)?.quantity||0));return `<tr><td>${esc(p.name)}</td>${vals.map(v=>`<td>${v}</td>`).join('')}<td><b>${vals.reduce((a,b)=>a+b,0)}</b></td></tr>`}).join('')||'<tr><td colspan="7">No products available.</td></tr>';
+ if(r.error){if(!offlineMode()&&isNetworkFailure(r.error)){markOfflineMode();sizeRows=await cachedSnapshot('sizes',[])}else{$('sizeRows').innerHTML=`<tr><td colspan="3">${esc(r.error.message)}</td></tr>`;return}}else sizeRows=r.data||[];if(!offlineMode())await cacheSnapshot('sizes',sizeRows);
+ $('sizeRows').innerHTML=rows.map(p=>{const sizes=sizesForProduct(p),vals=sizes.map(sz=>Number(sizeRows.find(x=>x.product_id===p.id&&x.size===sz)?.quantity||0));return `<tr><td>${esc(p.name)}<div class="muted">${esc(p.category||'Other')}</div></td><td style="white-space:normal;min-width:230px">${sizes.map((sz,i)=>`<span style="display:inline-block;margin:2px 7px 2px 0">${sz}: <b>${vals[i]}</b></span>`).join('')}</td><td><b>${vals.reduce((a,b)=>a+b,0)}</b></td></tr>`}).join('')||'<tr><td colspan="3">No products available.</td></tr>';
 }
 $('save').onclick=async()=>{
  if(offlineMode()){msg('msg','Add Stock ke liye internet connection zaroori hai. Offline mode mein sirf saved stock dekh sakte hain.',true);return}
@@ -540,7 +569,11 @@ function updateAutoPaymentAmount(){
  if(!input)return;
  if(input.dataset.autoFill==='1'||input.value.trim()===''){
   const total=cart.reduce((a,x)=>a+Number(x.price||0),0);
-  input.value=cart.length?Number(total.toFixed(2)):'';
+  const code=$('billVoucherCode')?.value.trim()||'';
+  const balance=(code&&billingVoucherCodeLoaded===code&&Number.isFinite(billingVoucherBalance))?billingVoucherBalance:0;
+  const amountDue=Math.max(0,Number((total-Math.min(total,balance)).toFixed(2)));
+  // A fully voucher-paid bill must have no zero-value payment row.
+  input.value=amountDue>0?amountDue:'';
   input.dataset.autoFill='1';
  }
 }
