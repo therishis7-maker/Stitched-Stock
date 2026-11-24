@@ -487,7 +487,7 @@ $('save').onclick=async()=>{
   }).eq('id',id);
   if(designError){msg('msg','Design details save nahi huin, stock add nahi hua: '+designError.message,true);return}
   const {data:rpcData,error:batchError}=await db.rpc('add_garment_batch',{p_product_id:id,p_size:size,p_quantity:qty,p_note:note});
-  if(batchError){msg('msg','Design details save ho gayin, lekin batch save nahi hua: '+batchError.message,true);await load();return}
+  if(batchError){await load();msg('msg','Batch save nahi hua: '+batchError.message+' — stock add nahi hua. Is error ko note karke share karein.',true);return}
   if(rpcData?.product_id && rpcData.product_id!==id){msg('msg','Database ne selected product se different Product ID return ki. Labels nahi banaye; stock dobara add NA karein.',true);return}
   if(rpcData?.size && String(rpcData.size).toUpperCase()!==String(size).toUpperCase()){msg('msg','Database ne selected size se different size return ki. Labels nahi banaye; stock dobara add NA karein.',true);return}
   const fresh=await db.from('products').select('id,name,category,quantity,updated_at,fabric_name,color,price').order('name');
