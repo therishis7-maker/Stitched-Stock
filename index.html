@@ -113,7 +113,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
   </section>
   <section id="entry" class="panel hidden">
     <h2>Add Stitched Stock</h2><p class="muted">Har piece ka unique QR code banega. Stock tabhi add hoga jab batch save hoga.</p>
-    <div class="form-grid"><div><label>Product / Design</label><select id="product"></select></div><div><label>Size</label><select id="size"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></div></div>
+    <div class="form-grid"><div><label>Product / Design</label><select id="product"></select></div><div><label>Size</label><input id="size" list="garmentSizeSuggestions" maxlength="40" placeholder="e.g. S, 32, Free Size" autocomplete="off"><datalist id="garmentSizeSuggestions"><option value="S"><option value="M"><option value="L"><option value="XL"><option value="XXL"><option value="26"><option value="28"><option value="30"><option value="32"><option value="34"><option value="36"><option value="38"><option value="40"><option value="42"><option value="44"><option value="Free Size"></datalist></div></div>
     <h2 style="margin-top:20px">Design Details (all sizes share this price)</h2>
     <div class="form-grid"><div><label>Fabric Name</label><input id="fabricName" maxlength="100" placeholder="e.g. Silk"></div><div><label>Color</label><input id="designColor" maxlength="60" placeholder="e.g. Black"></div></div>
     <label>Design Price (Rs.) — same for all sizes</label><input id="designPrice" type="number" min="0" step="0.01" placeholder="e.g. 4999">
@@ -126,7 +126,7 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
   </section>
   <section id="remove" class="panel hidden">
     <h2>Remove Stock</h2><p class="muted">Sirf select kiya hua product, size aur quantity remove hogi. Yeh action online confirmation ke saath hoga aur History mein record banega.</p>
-    <div class="form-grid"><div><label>Product / Design</label><select id="removeProduct"><option value="">Product select karein</option></select></div><div><label>Size</label><select id="removeSize"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></div></div>
+    <div class="form-grid"><div><label>Product / Design</label><select id="removeProduct"><option value="">Product select karein</option></select></div><div><label>Size</label><input id="removeSize" list="garmentSizeSuggestions" maxlength="40" placeholder="Stock wala exact size likhein" autocomplete="off"></div></div>
     <div class="mini-grid"><div class="mini-stat"><span>Selected Size — Available</span><b id="removeAvailable">0</b></div><div class="mini-stat"><span>Selected for Removal</span><b id="removeSelectedCount">0</b></div></div>
     <div class="sku-list"><div class="sku-list-head"><div><b>Specific SKU / QR Selection</b><div class="sku-count" id="removeQrSummary">Product aur size select karein</div></div><button type="button" class="secondary" id="toggleRemoveQrList">Show QR List</button></div>
       <div id="removeQrListWrap" class="sku-list-content hidden"><input id="removeQrSearch" class="sku-search" placeholder="SKU / QR code search karein…" autocomplete="off"><div class="actions" style="margin:6px 0 10px"><button type="button" class="secondary" id="selectFilteredRemoveQrs">Select visible</button><button type="button" class="secondary" id="clearRemoveQrs">Clear selection</button></div><div id="removeQrList" class="tablewrap"><div class="muted">Product aur size select karne par QR list load hogi.</div></div></div>
@@ -347,8 +347,8 @@ $('billVoucherCode').addEventListener('blur',refreshBillingVoucherBalance);
 const DRESS_SIZES=['S','M','L','XL','XXL'];
 const WAIST_SIZES=Array.from({length:10},(_,i)=>String(26+i*2)); // 26, 28 ... 44
 function isTrouserProduct(p){const v=((p?.category||'')+' '+(p?.name||'')).toLowerCase();return /\b(pants?|trousers?)\b/.test(v);}
-function sizesForProduct(p){return isTrouserProduct(p)?WAIST_SIZES:DRESS_SIZES;}
-function setSizeOptions(selectEl,p){if(!selectEl)return;const wanted=selectEl.value;const opts=sizesForProduct(p);selectEl.innerHTML=opts.map(x=>`<option value=\"${x}\">${x}</option>`).join('');if(opts.includes(wanted))selectEl.value=wanted;}
+function sizesForProduct(p){return [...new Set(sizeRows.filter(x=>x.product_id===p?.id).map(x=>String(x.size||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}));}
+function setSizeOptions(inputEl,p){if(!inputEl)return;inputEl.setAttribute('autocomplete','off');inputEl.placeholder=p?'Apna exact size likhein (e.g. 32 / XL / Free Size)':'Product select karein';}
 function syncProductSizeSelectors(){const p=rows.find(x=>x.id===$('product').value);setSizeOptions($('size'),p);const rp=rows.find(x=>x.id===$('removeProduct').value);setSizeOptions($('removeSize'),rp);}
 function fillDesignFields(){
  const p=rows.find(x=>x.id===$('product').value);
@@ -446,7 +446,7 @@ async function loadRemoveStockForm(){
 function updateRemoveStockPreview(){const pid=$('removeProduct').value,sz=$('removeSize').value;const available=Number(sizeRows.find(x=>x.product_id===pid&&x.size===sz)?.quantity||0);$('removeAvailable').textContent=available;$('removeSelectedCount').textContent=removeQrSelected.size;$('removeQrSummary').textContent=removeQrItems.length?`${removeQrItems.length} available QR · ${removeQrSelected.size} selected`:'Product aur size select karein';$('removeConfirm').disabled=offlineMode()||removeQrSelected.size<1;}
 function renderRemoveQrList(){const q=($('removeQrSearch')?.value||'').trim().toLowerCase();const filtered=removeQrItems.filter(x=>(x.qr_code||'').toLowerCase().includes(q));$('removeQrList').innerHTML=filtered.length?filtered.map(x=>`<label style="display:flex;align-items:center;gap:9px;padding:9px 10px;margin:0;border-bottom:1px solid var(--line);font-weight:500"><input type="checkbox" class="remove-qr-check" value="${esc(x.qr_code)}" ${removeQrSelected.has(x.qr_code)?'checked':''} style="width:18px;height:18px;margin:0;flex:0 0 18px"><span class="sku-code">${esc(x.qr_code)}</span></label>`).join(''):'<div class="muted" style="padding:10px">Search se koi SKU / QR match nahi hua.</div>';document.querySelectorAll('.remove-qr-check').forEach(c=>c.onchange=()=>{if(c.checked)removeQrSelected.add(c.value);else removeQrSelected.delete(c.value);updateRemoveStockPreview();renderRemoveQrList()});updateRemoveStockPreview();}
 async function loadRemoveQrItems(){const pid=$('removeProduct').value,sz=$('removeSize').value;removeQrItems=[];removeQrSelected.clear();$('removeQrSearch').value='';if(!pid){renderRemoveQrList();updateRemoveStockPreview();return}const {data,error}=await db.from('garment_qr').select('qr_code').eq('product_id',pid).eq('size',sz).eq('status','in_stock').order('qr_code').limit(500);if(error){$('removeQrList').innerHTML=`<div class="notice error">QR list load nahi hui: ${esc(error.message)}</div>`;$('removeQrSummary').textContent='QR data error';updateRemoveStockPreview();return}removeQrItems=data||[];renderRemoveQrList();}
-$('removeProduct').addEventListener('change',()=>{const p=rows.find(x=>x.id===$('removeProduct').value);setSizeOptions($('removeSize'),p);loadRemoveQrItems()});$('removeSize').addEventListener('change',()=>{loadRemoveQrItems()});$('removeQrSearch').addEventListener('input',renderRemoveQrList);
+$('removeProduct').addEventListener('change',()=>{const p=rows.find(x=>x.id===$('removeProduct').value);setSizeOptions($('removeSize'),p);$('removeSize').value='';loadRemoveQrItems()});$('removeSize').addEventListener('change',()=>{loadRemoveQrItems()});$('removeQrSearch').addEventListener('input',renderRemoveQrList);
 $('toggleRemoveQrList').onclick=()=>{removeQrListOpen=!removeQrListOpen;$('removeQrListWrap').classList.toggle('hidden',!removeQrListOpen);$('toggleRemoveQrList').textContent=removeQrListOpen?'Hide QR List':'Show QR List';if(removeQrListOpen)$('removeQrSearch').focus()};
 $('selectFilteredRemoveQrs').onclick=()=>{const q=$('removeQrSearch').value.trim().toLowerCase();removeQrItems.filter(x=>(x.qr_code||'').toLowerCase().includes(q)).forEach(x=>removeQrSelected.add(x.qr_code));renderRemoveQrList()};
 $('clearRemoveQrs').onclick=()=>{removeQrSelected.clear();renderRemoveQrList()};
@@ -471,6 +471,7 @@ $('save').onclick=async()=>{
  if(offlineMode()){msg('msg','Add Stock ke liye internet connection zaroori hai. Offline mode mein sirf saved stock dekh sakte hain.',true);return}
  const id=$('product').value,size=$('size').value,qty=Number($('qty').value),note=$('note').value.trim()||null;
  if(!id){msg('msg','Pehle product select karein.',true);return}
+ if(!String(size||'').trim()){msg('msg','Size zaroor enter karein.',true);return}
  if(!Number.isSafeInteger(qty)||qty<1||qty>500){msg('msg','Quantity 1 se 500 ke darmiyan whole number honi chahiye. 500 se zyada stock ko alag batches mein add karein.',true);return}
  const rawPrice=$('designPrice').value.trim();
  const price=rawPrice===''?null:Number(rawPrice);
@@ -509,7 +510,7 @@ $('save').onclick=async()=>{
    const brand=document.createElement('div');brand.className='label-brand';brand.textContent='ZANIS';
    const title=document.createElement('div');title.className='label-product';title.textContent=productName;
    const priceEl=document.createElement('div');priceEl.className='label-price';priceEl.textContent=money(design.price);
-   const details=document.createElement('div');details.className='label-details';details.textContent='SIZE: '+size+' · COLOR: '+(design.color||'—');
+   const details=document.createElement('div');details.className='label-details';details.textContent='SIZE: '+size+' · COLOR: '+(design.color||'—')+' · FABRIC: '+(design.fabric_name||'—');
    const txt=document.createElement('div');txt.className='qr-code-text';txt.textContent='SKU: '+code;
    right.append(brand,title,priceEl,details,txt);card.append(left,right);$('labelArea').append(card);
    try{new QRCode(qr,{text:code,width:90,height:90});if(!qr.querySelector('canvas,img'))qrRenderFailed=true}catch(e){qrRenderFailed=true}
