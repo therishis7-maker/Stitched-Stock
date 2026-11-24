@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sale Central</title>
-<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="voucher-preview-exchange-history-20261123-1"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="qr-label-history-autofocus-performance-20261125-1"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
 *{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
@@ -193,6 +193,10 @@ h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:4px;color:#14284a}h2{font-s
   <section id="history" class="panel hidden">
     <div class="section-head"><div><h2>Stock History</h2><span class="muted">Recent stock additions and sales</span></div><button id="csv" class="secondary">↓ Download CSV</button></div>
     <div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+    <div class="section-head" style="margin-top:24px"><div><h2>QR Label History</h2><span class="muted">Saved batches — open details or reprint original labels</span></div><button id="refreshQrLabelHistory" class="secondary" type="button">Refresh Labels</button></div>
+    <div id="qrLabelHistoryMsg" class="notice hidden"></div>
+    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Size</th><th>Labels</th><th>Action</th></tr></thead><tbody id="qrLabelHistoryRows"><tr><td colspan="5">QR label history load nahi hui.</td></tr></tbody></table></div>
+    <div id="historyLabelPrintArea" class="label-grid print-area" style="display:none"></div>
   </section>
   <p class="muted" style="margin-top:18px">Your account data is private to that account. Keep your login password safe.</p>
 </main>
@@ -313,9 +317,9 @@ $('closeAdminModal').onclick=()=>hide('adminModal');adminModal.addEventListener(
 $('myProfile').onclick=async()=>{const {data:{user}}=await db.auth.getUser();openAdminModal('My Profile',`<p><b>Account email</b></p><p class="muted">${esc(user?.email||'—')}</p><p class="muted">Sale Central account profile</p>`)};
 $('changePassword').onclick=()=>{openAdminModal('Change Password',`<label>New password</label><input id="newAdminPassword" type="password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmAdminPassword" type="password" placeholder="Re-enter new password"><div id="passwordNotice" class="notice hidden"></div><button id="saveAdminPassword" type="button" style="margin-top:12px">Update Password</button>`);$('saveAdminPassword').onclick=async()=>{const a=$('newAdminPassword').value,b=$('confirmAdminPassword').value;if(a.length<6){msg('passwordNotice','Password kam az kam 6 characters ka hona chahiye.',true);return}if(a!==b){msg('passwordNotice','Dono passwords match nahi karte.',true);return}const {error}=await db.auth.updateUser({password:a});if(error)msg('passwordNotice',error.message,true);else msg('passwordNotice','Password successfully update ho gaya.')};};
 $('settingsBtn').onclick=()=>openAdminModal('Settings',`<p><b>Brand</b></p><p class="muted">Sale Central</p><p><b>Theme</b></p><p class="muted">Navy blue &amp; blue, light dashboard</p><p class="muted">This panel is a basic account settings overview.</p>`);
-function focusBillingScanner(){const input=$('billingScanInput');if(!input||$('billing').classList.contains('hidden'))return;setTimeout(()=>{if(!$('billing').classList.contains('hidden')){input.focus({preventScroll:true});input.select?.()}},180)}
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','remove','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='remove')loadRemoveStockForm();if(b.dataset.tab==='exchange')loadExchangeHistory();if(b.dataset.tab==='billing'){loadInvoices();loadBillingSkuList();focusBillingScanner()}});
-$('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;$('refreshSkuList').onclick=loadBillingSkuList;$('skuSearch').addEventListener('input',renderBillingSkuList);
+function focusBillingScanner(){const input=$('billingScanInput');if(!input||$('billing').classList.contains('hidden'))return;setTimeout(()=>{if(!$('billing').classList.contains('hidden')&&document.activeElement!==input){input.focus({preventScroll:true});input.select?.()}},120)}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['stock','entry','remove','sales','billing','exchange','sizes','qr','history'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='sizes')loadSizes();if(b.dataset.tab==='remove')loadRemoveStockForm();if(b.dataset.tab==='exchange')loadExchangeHistory();if(b.dataset.tab==='history')loadQrLabelHistory();if(b.dataset.tab==='billing'){loadInvoices();if(!billingSkuLoaded)loadBillingSkuList();focusBillingScanner()}});
+$('refresh').onclick=load;$('salesRefresh').onclick=load;$('sizesRefresh').onclick=loadSizes;$('billingRefresh').onclick=loadInvoices;$('refreshSkuList').onclick=()=>{billingSkuLoaded=false;loadBillingSkuList()};$('skuSearch').addEventListener('input',renderBillingSkuList);
 $('toggleSkuList').onclick=()=>{const body=$('skuListContent'),closed=body.classList.toggle('hidden');$('toggleSkuList').textContent=closed?'Show SKU List':'Hide SKU List';if(!closed)$('skuSearch').focus()};
 $('syncOfflineNow').onclick=async()=>{if(!navigator.onLine){billingMessage('Internet connect karein, phir Sync Offline Sales Now dabayein.',true);return} $('syncOfflineNow').disabled=true;await syncPendingSales(true);await load();$('syncOfflineNow').disabled=false};
 $('exchangeIssue').onclick=issueExchangeCredit;
@@ -372,7 +376,7 @@ async function load(){
  $('stockRows').querySelectorAll('[data-stock-detail]').forEach(b=>b.onclick=()=>openStockDetails(b.dataset.stockDetail));
  const h=await db.from('stock_movements').select('movement_type,quantity,note,created_at,products(name)').order('created_at',{ascending:false}).limit(500);
  if(h.error){if(!navigator.onLine||isNetworkFailure(h.error)){markOfflineMode();await loadOfflineDashboard();return}msg('msg',h.error.message,true);return}movements=h.data||[];await cacheSnapshot('movements',movements);
- renderHistoryAndSales();await loadSizes();await loadInvoices();
+ renderHistoryAndSales();await Promise.all([loadSizes(),loadInvoices()]);
 }
 function formatMovementNote(x){if(x.movement_type!=='REMOVE'||!x.note)return esc(x.note||'');try{const n=JSON.parse(x.note);if(!n||!Array.isArray(n.removed_qr_codes))return esc(x.note);const qrs=n.removed_qr_codes;const reason=esc(n.reason||'—'),extra=n.note?`<div style="margin-top:4px">Note: ${esc(n.note)}</div>`:'';const before=n.stock_before||{},after=n.stock_after||{};const stockLine=(before.total!=null&&after.total!=null)?`<div class="muted">Total stock: ${before.total} → ${after.total} · Size: ${before.size} → ${after.size}</div>`:'';return `<b>Reason:</b> ${reason}${extra}${stockLine}<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--blue);font-weight:700">View removed SKUs / QR (${qrs.length})</summary><div style="max-height:180px;overflow:auto;padding:8px;background:#f7faff;border-radius:8px">${qrs.map(code=>`<div class="sku-code">${esc(code)}</div>`).join('')}</div></details>`}catch(e){return esc(x.note)}}
 async function applyDashboardSalesTotals(serverOutRows,baselineAvailable=true){
@@ -397,7 +401,9 @@ async function renderHistoryAndSales(){
  else await applyDashboardSalesTotals(movements.filter(x=>x.movement_type==='OUT'),false);
  if(!offlineMode())refreshSalesTotals();
 }
+let lastSalesTotalsRefresh=0;
 async function refreshSalesTotals(){try{
+ if(Date.now()-lastSalesTotalsRefresh<600000)return;lastSalesTotalsRefresh=Date.now();
  const todayStart=new Date();todayStart.setHours(0,0,0,0);
  let total=0,today=0,offset=0;const pageSize=1000,allOut=[];
  while(true){
@@ -467,6 +473,46 @@ async function loadSizes(){
  if(r.error){if(!offlineMode()&&isNetworkFailure(r.error)){markOfflineMode();sizeRows=await cachedSnapshot('sizes',[])}else{$('sizeRows').innerHTML=`<tr><td colspan="3">${esc(r.error.message)}</td></tr>`;return}}else sizeRows=r.data||[];if(!offlineMode())await cacheSnapshot('sizes',sizeRows);
  $('sizeRows').innerHTML=rows.map(p=>{const sizes=sizesForProduct(p),vals=sizes.map(sz=>Number(sizeRows.find(x=>x.product_id===p.id&&x.size===sz)?.quantity||0));return `<tr><td>${esc(p.name)}<div class="muted">${esc(p.category||'Other')}</div></td><td style="white-space:normal;min-width:230px">${sizes.map((sz,i)=>`<span style="display:inline-block;margin:2px 7px 2px 0">${sz}: <b>${vals[i]}</b></span>`).join('')}</td><td><b>${vals.reduce((a,b)=>a+b,0)}</b></td></tr>`}).join('')||'<tr><td colspan="3">No products available.</td></tr>';
 }
+function makeQrLabelCard(code,design,size){
+ const card=document.createElement('div');card.className='qr-label';
+ const left=document.createElement('div');left.className='qr-left';const qr=document.createElement('div');left.append(qr);
+ const right=document.createElement('div');right.className='qr-right';
+ const brand=document.createElement('div');brand.className='label-brand';brand.textContent='ZANIS';
+ const title=document.createElement('div');title.className='label-product';title.textContent=design.product_name||design.name||'Garment';
+ const priceEl=document.createElement('div');priceEl.className='label-price';priceEl.textContent=money(design.price);
+ const details=document.createElement('div');details.className='label-details';details.textContent='SIZE: '+size+' · COLOR: '+(design.color||'—')+' · FABRIC: '+(design.fabric_name||'—');
+ const txt=document.createElement('div');txt.className='qr-code-text';txt.textContent='SKU: '+code;
+ right.append(brand,title,priceEl,details,txt);card.append(left,right);
+ try{new QRCode(qr,{text:code,width:90,height:90});}catch(e){card.dataset.qrError='1'}
+ return card;
+}
+function renderQrLabelCards(target,codes,design,size){target.innerHTML='';let failed=false;for(const code of codes){const card=makeQrLabelCard(code,design,size);if(card.dataset.qrError==='1'||!card.querySelector('canvas,img'))failed=true;target.append(card)}return !failed;}
+async function saveQrLabelBatch(record){
+ // Local IndexedDB backup protects the current device if the database migration
+ // has not yet been applied; the Supabase table provides cross-device history.
+ const local=await cachedSnapshot('qrLabelBatches',[]);local.unshift(record);await cacheSnapshot('qrLabelBatches',local.slice(0,200));
+ const {data:{user},error:userError}=await db.auth.getUser();if(userError)throw userError;
+ const payload={owner_id:user.id,product_id:record.product_id,product_name:record.product_name,category:record.category||null,size:record.size,quantity:record.quantity,qr_codes:record.qr_codes,price:record.price,color:record.color||null,fabric_name:record.fabric_name||null,note:record.note||null,created_at:record.created_at};
+ const {error}=await db.from('garment_qr_label_batches').insert(payload);if(error)throw error;
+}
+async function loadQrLabelHistory(){
+ const body=$('qrLabelHistoryRows');if(!body)return;
+ if(offlineMode()){
+  const list=await cachedSnapshot('qrLabelBatches',[]);renderQrLabelHistoryRows(list,'Device-saved history · offline');return;
+ }
+ body.innerHTML='<tr><td colspan="5">QR label history load ho rahi hai…</td></tr>';hide('qrLabelHistoryMsg');
+ const {data,error}=await db.from('garment_qr_label_batches').select('id,product_id,product_name,category,size,quantity,qr_codes,price,color,fabric_name,note,created_at').order('created_at',{ascending:false}).limit(200);
+ if(error){const local=await cachedSnapshot('qrLabelBatches',[]);renderQrLabelHistoryRows(local,'Device backup only');msg('qrLabelHistoryMsg','Database QR label history available nahi: '+error.message+'. SQL setup apply karne ke baad Refresh Labels karein.',true);return}
+ const list=data||[];await cacheSnapshot('qrLabelBatches',list);renderQrLabelHistoryRows(list,'Database history');
+}
+function renderQrLabelHistoryRows(list,source){
+ $('qrLabelHistoryRows').innerHTML=(list||[]).map((x,i)=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.product_name||'Garment')}</td><td>${esc(x.size||'—')}</td><td><b>${Number(x.quantity||x.qr_codes?.length||0)}</b></td><td><div class="actions"><button type="button" class="secondary" data-label-detail="${i}">Details</button><button type="button" data-label-print="${i}">Reprint</button></div></td></tr>`).join('')||'<tr><td colspan="5">Abhi koi saved QR label batch nahi hai.</td></tr>';
+ $('qrLabelHistoryRows').querySelectorAll('[data-label-detail]').forEach(b=>b.onclick=()=>{const x=list[Number(b.dataset.labelDetail)];openAdminModal('QR Label Batch Details',`<p><b>Product:</b> ${esc(x.product_name)}</p><p><b>Size:</b> ${esc(x.size)}</p><p><b>Quantity:</b> ${Number(x.quantity||x.qr_codes?.length||0)}</p><p><b>Generated:</b> ${esc(new Date(x.created_at).toLocaleString())}</p><p><b>SKU / QR Codes:</b></p><div style="max-height:45vh;overflow:auto;background:#f7faff;padding:10px;border-radius:10px">${(x.qr_codes||[]).map(c=>`<div class="sku-code" style="padding:4px 0">${esc(c)}</div>`).join('')}</div><p class="muted">${esc(x.note||'')}</p>`)});
+ $('qrLabelHistoryRows').querySelectorAll('[data-label-print]').forEach(b=>b.onclick=()=>{const x=list[Number(b.dataset.labelPrint)];const target=$('historyLabelPrintArea');const ok=renderQrLabelCards(target,x.qr_codes||[],{product_name:x.product_name,price:x.price,color:x.color,fabric_name:x.fabric_name},x.size);if(!ok){msg('qrLabelHistoryMsg','QR images render nahi huin. Internet/QR library check karein; print na karein.',true);return}target.style.display='grid';window.print();});
+}
+window.addEventListener('afterprint',()=>{const el=$('historyLabelPrintArea');if(el){el.style.display='none';el.innerHTML=''}});
+$('refreshQrLabelHistory').onclick=loadQrLabelHistory;
+
 $('save').onclick=async()=>{
  if(offlineMode()){msg('msg','Add Stock ke liye internet connection zaroori hai. Offline mode mein sirf saved stock dekh sakte hain.',true);return}
  const id=$('product').value,size=$('size').value,qty=Number($('qty').value),note=$('note').value.trim()||null;
@@ -500,25 +546,16 @@ $('save').onclick=async()=>{
    msg('msg',`Stock database mein add ho gaya, lekin ${qty} ke muqable ${batchCodes.length} QR codes mile. Labels nahi banaye. Stock dobara add NA karein; database/QR result check karein.`,true);
    await load();return;
   }
-  $('labelArea').innerHTML='';const design=rows.find(x=>x.id===id)||{};const productName=design.name||'Garment';
-  let qrRenderFailed=false;
-  batchCodes.forEach(code=>{
-   const card=document.createElement('div');card.className='qr-label';
-   const left=document.createElement('div');left.className='qr-left';
-   const qr=document.createElement('div');left.append(qr);
-   const right=document.createElement('div');right.className='qr-right';
-   const brand=document.createElement('div');brand.className='label-brand';brand.textContent='ZANIS';
-   const title=document.createElement('div');title.className='label-product';title.textContent=productName;
-   const priceEl=document.createElement('div');priceEl.className='label-price';priceEl.textContent=money(design.price);
-   const details=document.createElement('div');details.className='label-details';details.textContent='SIZE: '+size+' · COLOR: '+(design.color||'—')+' · FABRIC: '+(design.fabric_name||'—');
-   const txt=document.createElement('div');txt.className='qr-code-text';txt.textContent='SKU: '+code;
-   right.append(brand,title,priceEl,details,txt);card.append(left,right);$('labelArea').append(card);
-   try{new QRCode(qr,{text:code,width:90,height:90});if(!qr.querySelector('canvas,img'))qrRenderFailed=true}catch(e){qrRenderFailed=true}
-  });
+  const design=rows.find(x=>x.id===id)||{};
+  const labelRecord={product_id:id,product_name:design.name||'Garment',category:design.category||null,size,quantity:batchCodes.length,qr_codes:batchCodes.slice(),price:design.price,color:design.color||null,fabric_name:design.fabric_name||null,note,created_at:new Date().toISOString()};
+  const qrRenderOk=renderQrLabelCards($('labelArea'),batchCodes,{product_name:labelRecord.product_name,price:labelRecord.price,color:labelRecord.color,fabric_name:labelRecord.fabric_name},size);
+  let historySaveWarning='';
+  try{await saveQrLabelBatch(labelRecord)}catch(saveErr){historySaveWarning=' Labels is device par backup hain, lekin permanent database history save nahi hui. SQL setup apply karein. '+(saveErr.message||saveErr)}
+  let qrRenderFailed=!qrRenderOk;
   $('batchSummary').textContent=`${batchCodes.length} QR labels generated for ${productName}, size ${size}.`;
   show('batchResult');$('qty').value='';$('note').value='';
   if(qrRenderFailed){msg('msg','Stock aur QR codes save ho gaye, lekin ek ya zyada QR images render nahi huin. Print na karein; internet/QR library check karein.',true)}
-  else msg('msg','Stock aur design details save ho gaye. Har size ki price same rahegi. Labels print kar sakte hain.');
+  else msg('msg','Stock aur design details save ho gaye. Labels print kar sakte hain.'+historySaveWarning,!!historySaveWarning);
   await load();
  }catch(err){msg('msg','Unexpected error: '+(err?.message||err)+'. Agar stock add ho chuka ho to dobara batch save na karein.',true)}
  finally{$('save').disabled=false}
@@ -660,7 +697,7 @@ async function loadBillingSkuList(){
    if(page.length<pageSize)break;
    start+=pageSize;
   }
-  billingStockItems=all.filter(x=>x.status==='in_stock');await cacheSnapshot('billingStockItems',billingStockItems);renderBillingSkuList();
+  billingStockItems=all.filter(x=>x.status==='in_stock');billingSkuLoaded=true;await cacheSnapshot('billingStockItems',billingStockItems);renderBillingSkuList();
  }catch(error){
   if(isNetworkFailure(error)){markOfflineMode();billingStockItems=await cachedSnapshot('billingStockItems',[]);renderBillingSkuList();$('skuListCount').textContent=`${billingStockItems.length} cached piece(s) · connection unavailable`;return}
   billingStockItems=[];$('skuRows').innerHTML=`<tr><td colspan="6">SKU list load nahi hui: ${esc(error.message||String(error))}</td></tr>`;$('skuListCount').textContent='List unavailable';
@@ -676,6 +713,7 @@ function renderBillingSkuList(){
  $('skuRows').querySelectorAll('[data-add-sku]').forEach(b=>b.onclick=()=>{const item=billingStockItems.find(x=>x.qr_code===b.dataset.addSku);if(!item)return;try{if(addBillingItemToCart(item)){$('billingScanMsg').textContent=`✓ ${item.products?.name||'Product'} · Size ${item.size||''} · SKU ${item.qr_code} cart mein add ho gaya.`;$('billingScanMsg').className='notice success';renderBillingSkuList();}else{$('billingScanMsg').textContent='Yeh piece cart mein pehle se mojood hai.';$('billingScanMsg').className='notice error';}}catch(e){$('billingScanMsg').textContent=e.message||String(e);$('billingScanMsg').className='notice error';}});
 }
 let billingScanQueue = Promise.resolve();
+let billingSkuLoaded=false;
 function addBillingScanToQueue(code){
  const clean=String(code||'').trim();
  if(!clean)return;
@@ -689,7 +727,7 @@ async function addBillingQrToCart(code){
  if(cart.some(x=>x.qr_code===code)){
    $('billingScanMsg').textContent='Yeh QR pehle se cart mein hai.';
    $('billingScanMsg').className='notice error';
-   return;
+   focusBillingScanner();return;
  }
  $('billingScanButton').disabled=true;
  $('billingScanMsg').textContent='QR verify ho raha hai…';
