@@ -552,7 +552,7 @@ $('save').onclick=async()=>{
   let historySaveWarning='';
   try{await saveQrLabelBatch(labelRecord)}catch(saveErr){historySaveWarning=' Labels is device par backup hain, lekin permanent database history save nahi hui. SQL setup apply karein. '+(saveErr.message||saveErr)}
   let qrRenderFailed=!qrRenderOk;
-  $('batchSummary').textContent=`${batchCodes.length} QR labels generated for ${productName}, size ${size}.`;
+  $('batchSummary').textContent=`${batchCodes.length} QR labels generated for ${labelRecord.product_name}, size ${size}.`;
   show('batchResult');$('qty').value='';$('note').value='';
   if(qrRenderFailed){msg('msg','Stock aur QR codes save ho gaye, lekin ek ya zyada QR images render nahi huin. Print na karein; internet/QR library check karein.',true)}
   else msg('msg','Stock aur design details save ho gaye. Labels print kar sakte hain.'+historySaveWarning,!!historySaveWarning);
