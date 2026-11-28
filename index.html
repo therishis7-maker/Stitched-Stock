@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sale Central</title>
-<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="qr-label-history-autofocus-performance-20261125-1"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#102b59"><meta name="sale-central-build" content="qr-individual-batch-price-fix-20261129-1"><link rel="manifest" href="./manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#17233d;background:#f4f7fc;--navy:#102b59;--blue:#2463d9;--pale:#eaf1ff;--line:#e4eaf4;--muted:#71809a}
 *{box-sizing:border-box}body{margin:0;background:#f4f7fc}.hidden{display:none!important}
@@ -561,6 +561,28 @@ $('save').onclick=async()=>{
  finally{$('save').disabled=false}
 };
 $('printLabels').onclick=()=>window.print();
+async function getOriginalQrBatchPrice(code, garment){
+ const clean=String(code||'').trim();
+ if(!clean)throw new Error('QR code missing.');
+ let matches=[];
+ if(offlineMode()){
+  const local=await cachedSnapshot('qrLabelBatches',[]);
+  matches=(local||[]).filter(x=>Array.isArray(x.qr_codes)&&x.qr_codes.includes(clean));
+ }else{
+  const {data,error}=await db.from('garment_qr_label_batches')
+   .select('id,product_id,size,qr_codes,price')
+   .contains('qr_codes',[clean]);
+  if(error)throw new Error('Original QR price history load nahi hui: '+error.message);
+  matches=data||[];
+ }
+ if(matches.length!==1)throw new Error(matches.length===0?'Is QR ki original batch price history nahi mili. Is piece ko wrong price par sell nahi kiya ja sakta.':'Is QR ki multiple batch histories milin. Sale rok di gayi hai.');
+ const batch=matches[0];
+ if(String(batch.product_id)!==String(garment.product_id)||String(batch.size||'').toUpperCase()!==String(garment.size||'').toUpperCase())
+  throw new Error('QR batch aur garment details match nahi karte. Sale rok di gayi hai.');
+ const price=Number(batch.price);
+ if(batch.price==null||!Number.isFinite(price)||price<=0)throw new Error('Is QR ki original batch price missing/invalid hai. Pehle original price history verify karein.');
+ return price;
+}
 async function stageQr(code){
  stagedQr=String(code||'').trim();$('scanInput').value=stagedQr;hide('confirmSale');stagedGarment=null;
  if(!stagedQr){$('scanResult').textContent='QR code empty hai.';return}
@@ -568,10 +590,15 @@ async function stageQr(code){
  $('scanResult').textContent='QR code database mein check ho raha hai…';
  let data,error=null;
  if(offlineMode())data=billingStockItems.find(x=>x.qr_code===stagedQr)||null;
- else {const result=await db.from('garment_qr').select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color,price)').eq('qr_code',stagedQr).maybeSingle();data=result.data;error=result.error;}
+ else {const result=await db.from('garment_qr').select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color)').eq('qr_code',stagedQr).maybeSingle();data=result.data;error=result.error;}
  if(error){$('scanResult').textContent='QR lookup error: '+error.message;stagedQr='';return}
  if(!data){$('scanResult').textContent=offlineMode()?'Yeh QR saved offline stock list mein nahi mila. Pehle online sync karein.':'Yeh QR Sale Central mein registered nahi hai. Add Stock se generate kiya gaya original garment QR scan karein.';stagedQr='';return}
- const p=data.products||{};stagedGarment={...data,product_name:p.name||'Garment',fabric_name:p.fabric_name||'',color:p.color||'',price:p.price==null?null:Number(p.price)};
+ const p=data.products||{};let originalPrice=null;
+ if(data.status==='in_stock'){
+  try{originalPrice=await getOriginalQrBatchPrice(data.qr_code,data)}
+  catch(priceError){$('scanResult').innerHTML='<p class="notice error">'+esc(priceError.message||String(priceError))+'</p>';return}
+ }
+ stagedGarment={...data,product_name:p.name||'Garment',fabric_name:p.fabric_name||'',color:p.color||'',price:originalPrice};
  const status=data.status==='in_stock'?'In Stock':(data.status==='sold'?'Sold':'Unknown');
  $('scanResult').innerHTML=`
    <h2>Garment Details</h2>
@@ -579,13 +606,12 @@ async function stageQr(code){
     <div class="mini-stat"><span>Design / Product</span><b style="font-size:17px">${esc(p.name||'—')}</b></div>
     <div class="mini-stat"><span>Fabric</span><b style="font-size:17px">${esc(p.fabric_name||'Not added')}</b></div>
     <div class="mini-stat"><span>Size</span><b style="font-size:17px">${esc(data.size||'—')}</b></div>
-    <div class="mini-stat"><span>Price</span><b style="font-size:17px">${p.price==null?'Not added':'Rs. '+Number(p.price).toLocaleString('en-PK')}</b></div>
+    <div class="mini-stat"><span>Price</span><b style="font-size:17px">${originalPrice==null?'Not available':'Rs. '+Number(originalPrice).toLocaleString('en-PK')}</b></div>
     <div class="mini-stat"><span>Color</span><b style="font-size:17px">${esc(p.color||'Not added')}</b></div>
     <div class="mini-stat"><span>Stock Status</span><b style="font-size:17px">${status}</b></div>
    </div>
    <div class="muted">Unique QR / Product ID: ${esc(data.qr_code)}</div>`;
  if(data.status==='in_stock'){
-   if(p.price==null || !Number.isFinite(Number(p.price)) || Number(p.price)<0){$('scanResult').innerHTML+='<p class="notice error">Is design ki valid price set nahi. Add Stock mein design price save karein.</p>';return}
    show('confirmSale');$('confirmSale').textContent='＋ Add to Cart';
  }
  else if(data.status==='sold'){$('scanResult').innerHTML+='<p class="notice error">Yeh garment pehle hi sold mark ho chuka hai. Dobara sale nahi ho sakti.</p>'}
@@ -673,11 +699,12 @@ function renderCart(){
  $('cartRows').querySelectorAll('[data-remove-qr]').forEach(b=>b.onclick=()=>{cart=cart.filter(x=>x.qr_code!==b.dataset.removeQr);renderCart()});
  updateAutoPaymentAmount();
 }
-function addBillingItemToCart(data){
+async function addBillingItemToCart(data){
  if(!data||cart.some(x=>x.qr_code===data.qr_code))return false;
- const p=data.products||{};const price=p.price==null?null:Number(p.price);
- if(price===null||!Number.isFinite(price)||price<0)throw new Error('Is design ki valid price set nahi.');
- cart.push({...data,product_name:p.name||'Garment',category:p.category||'Other',fabric_name:p.fabric_name||'',color:p.color||'',price});
+ const p=data.products||{};
+ const price=Number.isFinite(Number(data.price))&&data.price!=null?Number(data.price):await getOriginalQrBatchPrice(data.qr_code,data);
+ if(!Number.isFinite(price)||price<=0)throw new Error('QR ki original batch price valid nahi.');
+ cart.push({...data,product_name:data.product_name||p.name||'Garment',category:data.category||p.category||'Other',fabric_name:data.fabric_name||p.fabric_name||'',color:data.color||p.color||'',price});
  renderCart();return true;
 }
 async function loadBillingSkuList(){
@@ -690,7 +717,7 @@ async function loadBillingSkuList(){
  try{
   while(true){
    const {data,error}=await db.from('garment_qr')
-    .select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color,price)')
+    .select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color)')
     .eq('status','in_stock').order('qr_code',{ascending:true}).range(start,start+pageSize-1);
    if(error)throw error;
    const page=data||[];all=all.concat(page);
@@ -709,8 +736,8 @@ function renderBillingSkuList(){
  const available=billingStockItems.filter(x=>!cart.some(c=>c.qr_code===x.qr_code));
  const filtered=available.filter(x=>{const p=x.products||{};return [x.qr_code,p.name,x.size,p.color,p.category,p.fabric_name].some(v=>String(v||'').toLowerCase().includes(q));});
  $('skuListCount').textContent=`${filtered.length} available piece(s) shown · ${available.length} total available (all pages loaded)`;
- $('skuRows').innerHTML=filtered.map(x=>{const p=x.products||{};return `<tr><td><span class="sku-code">${esc(x.qr_code)}</span></td><td>${esc(p.name||'Garment')}</td><td>${esc(x.size||'—')}</td><td>${esc(p.color||'—')}</td><td>${money(p.price)}</td><td><button type="button" data-add-sku="${esc(x.qr_code)}" class="secondary">Add to Cart</button></td></tr>`}).join('')||`<tr><td colspan="6">${q?'Is search se koi available piece nahi mila.':'Koi available piece stock mein nahi hai.'}</td></tr>`;
- $('skuRows').querySelectorAll('[data-add-sku]').forEach(b=>b.onclick=()=>{const item=billingStockItems.find(x=>x.qr_code===b.dataset.addSku);if(!item)return;try{if(addBillingItemToCart(item)){$('billingScanMsg').textContent=`✓ ${item.products?.name||'Product'} · Size ${item.size||''} · SKU ${item.qr_code} cart mein add ho gaya.`;$('billingScanMsg').className='notice success';renderBillingSkuList();}else{$('billingScanMsg').textContent='Yeh piece cart mein pehle se mojood hai.';$('billingScanMsg').className='notice error';}}catch(e){$('billingScanMsg').textContent=e.message||String(e);$('billingScanMsg').className='notice error';}});
+ $('skuRows').innerHTML=filtered.map(x=>{const p=x.products||{};return `<tr><td><span class="sku-code">${esc(x.qr_code)}</span></td><td>${esc(p.name||'Garment')}</td><td>${esc(x.size||'—')}</td><td>${esc(p.color||'—')}</td><td>QR price verify on add</td><td><button type="button" data-add-sku="${esc(x.qr_code)}" class="secondary">Add to Cart</button></td></tr>`}).join('')||`<tr><td colspan="6">${q?'Is search se koi available piece nahi mila.':'Koi available piece stock mein nahi hai.'}</td></tr>`;
+ $('skuRows').querySelectorAll('[data-add-sku]').forEach(b=>b.onclick=async()=>{const item=billingStockItems.find(x=>x.qr_code===b.dataset.addSku);if(!item)return;b.disabled=true;try{if(await addBillingItemToCart(item)){$('billingScanMsg').textContent=`✓ ${item.products?.name||'Product'} · Size ${item.size||''} · ${money(cart.find(x=>x.qr_code===item.qr_code)?.price)} · SKU ${item.qr_code} cart mein add ho gaya.`;$('billingScanMsg').className='notice success';renderBillingSkuList();}else{$('billingScanMsg').textContent='Yeh piece cart mein pehle se mojood hai.';$('billingScanMsg').className='notice error';}}catch(e){$('billingScanMsg').textContent=e.message||String(e);$('billingScanMsg').className='notice error';}finally{b.disabled=false;}});
 }
 let billingScanQueue = Promise.resolve();
 let billingSkuLoaded=false;
@@ -735,11 +762,11 @@ async function addBillingQrToCart(code){
  try{
    let data,error=null;
    if(offlineMode())data=billingStockItems.find(x=>x.qr_code===code)||null;
-   else {const result=await db.from('garment_qr').select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color,price)').eq('qr_code',code).maybeSingle();data=result.data;error=result.error;}
+   else {const result=await db.from('garment_qr').select('id,product_id,size,qr_code,status,products(name,category,fabric_name,color)').eq('qr_code',code).maybeSingle();data=result.data;error=result.error;}
    if(error)throw error;
    if(!data)throw new Error(offlineMode()?'Yeh QR saved offline stock list mein nahi mila. Pehle online sync karein.':'Yeh QR Sale Central mein registered nahi hai.');
    if(data.status!=='in_stock')throw new Error('Yeh garment sold hai ya stock mein available nahi.');
-   addBillingItemToCart(data);
+   await addBillingItemToCart(data);
    const p=data.products||{};
    $('billingScanMsg').textContent='✓ '+(p.name||'Product')+' · Size '+(data.size||'')+' · SKU '+data.qr_code+' cart mein add ho gaya.';
    $('billingScanMsg').className='notice success';
